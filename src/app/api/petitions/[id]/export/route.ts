@@ -24,10 +24,10 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
 
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const membership = await prisma.membership.findFirst({
+  const currentUserMembership = await prisma.membership.findFirst({
     where: { userId: session.user.id, orgId: petition.orgId },
   })
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!currentUserMembership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (petition.status !== 'CLOSED' && petition.status !== 'EXPORTED') {
     return NextResponse.json({ error: 'Petition must be CLOSED before export' }, { status: 400 })
@@ -36,19 +36,24 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     return NextResponse.json({ error: 'No final text' }, { status: 400 })
   }
 
-  // Fetch membership for each signer
-  const signaturesWithMembership = await Promise.all(
-    petition.signatures.map(async sig => {
-      const membership = await prisma.membership.findFirst({
-        where: { userId: sig.userId, orgId: petition.orgId },
-        include: {
-          apartment: { select: { number: true } },
-          org: { select: { name: true } },
-        },
-      })
-      return { ...sig, membership }
-    })
-  )
+  // Single query for all signers' memberships
+  const signerMemberships = await prisma.membership.findMany({
+    where: {
+      orgId: petition.orgId,
+      userId: { in: petition.signatures.map(s => s.userId) },
+    },
+    include: {
+      apartment: { select: { number: true } },
+      org: { select: { name: true } },
+    },
+  })
+
+  const membershipByUserId = new Map(signerMemberships.map(m => [m.userId, m]))
+
+  const signaturesWithMembership = petition.signatures.map(sig => ({
+    ...sig,
+    membership: membershipByUserId.get(sig.userId) ?? null,
+  }))
 
   const pdf = await generatePetitionPdf(
     petition.title,
@@ -60,10 +65,11 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     await prisma.petition.update({ where: { id }, data: { status: 'EXPORTED' } })
   }
 
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')
   return new NextResponse(pdf, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="petition-${id}.pdf"`,
+      'Content-Disposition': `attachment; filename="petition-${safeId}.pdf"`,
     },
   })
 }
