@@ -22,6 +22,12 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
 
   async function startRevision() {
     'use server'
+    const sess = await auth()
+    if (!sess?.user) redirect('/login')
+    const membership = await prisma.membership.findFirst({
+      where: { userId: sess.user.id, orgId: petition.orgId },
+    })
+    if (!membership) redirect('/login')
     await prisma.petition.update({
       where: { id },
       data: { status: 'AI_REVISION' },

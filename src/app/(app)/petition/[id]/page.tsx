@@ -61,9 +61,18 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
           <ul className="space-y-2">
             {petition.materials.map(m => (
               <li key={m.id}>
-                <a href={m.url} className="text-blue-600 hover:underline text-sm">
-                  {m.name}
-                </a>
+                {/^https?:\/\//.test(m.url) ? (
+                  <a
+                    href={m.url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {m.name}
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-600">{m.name}</span>
+                )}
               </li>
             ))}
           </ul>

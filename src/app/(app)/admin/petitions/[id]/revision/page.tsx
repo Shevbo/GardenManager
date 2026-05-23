@@ -15,39 +15,49 @@ export default function RevisionPage() {
   async function runAI() {
     setAiLoading(true)
     setError('')
-    const res = await fetch(`/api/petitions/${id}/revise`, { method: 'POST' })
-    if (res.ok) {
-      const data = await res.json() as { id: string; aiSuggestion: string; aiSummary: string }
-      setRevision(data)
-      setFinalText(data.aiSuggestion)
-    } else {
-      const data = await res.json() as { error?: string }
-      setError(data.error ?? 'Ошибка AI-ревизии')
+    try {
+      const res = await fetch(`/api/petitions/${id}/revise`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json() as { id: string; aiSuggestion: string; aiSummary: string }
+        setRevision(data)
+        setFinalText(data.aiSuggestion)
+      } else {
+        const data = await res.json() as { error?: string }
+        setError(data.error ?? 'Ошибка AI-ревизии')
+      }
+    } catch {
+      setError('Ошибка сети. Попробуйте ещё раз.')
+    } finally {
+      setAiLoading(false)
     }
-    setAiLoading(false)
   }
 
   async function approve() {
     if (!revision) return
     setLoading(true)
     setError('')
-    const res = await fetch(`/api/petitions/${id}/revise`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ finalText, revisionId: revision.id }),
-    })
-    if (res.ok) {
-      await fetch(`/api/petitions/${id}`, {
+    try {
+      const res = await fetch(`/api/petitions/${id}/revise`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'SIGNING' }),
+        body: JSON.stringify({ finalText, revisionId: revision.id }),
       })
-      router.push(`/admin/petitions/${id}/signing`)
-    } else {
-      const data = await res.json() as { error?: string }
-      setError(data.error ?? 'Ошибка сохранения')
+      if (res.ok) {
+        await fetch(`/api/petitions/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'SIGNING' }),
+        })
+        router.push(`/admin/petitions/${id}/signing`)
+      } else {
+        const data = await res.json() as { error?: string }
+        setError(data.error ?? 'Ошибка сохранения')
+      }
+    } catch {
+      setError('Ошибка сети. Попробуйте ещё раз.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

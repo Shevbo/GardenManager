@@ -34,6 +34,11 @@ export default function NewPetitionPage() {
     const data = await res.json() as { id?: string; error?: string }
     setLoading(false)
     if (res.ok && data.id) {
+      await fetch(`/api/petitions/${data.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DISCUSSION' }),
+      })
       router.push(`/admin/petitions/${data.id}/discussion`)
     } else {
       setError(data.error ?? 'Ошибка создания')

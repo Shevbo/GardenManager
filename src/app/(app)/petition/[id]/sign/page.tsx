@@ -13,19 +13,24 @@ export default function SignPage() {
   async function handleSign() {
     setLoading(true)
     setError('')
-    const res = await fetch(`/api/petitions/${id}/sign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ legalConsent: true }),
-    })
-    if (res.ok) {
-      setDone(true)
-      setTimeout(() => router.push(`/petition/${id}`), 2000)
-    } else {
-      const data = await res.json() as { error?: string }
-      setError(data.error ?? 'Ошибка подписания')
+    try {
+      const res = await fetch(`/api/petitions/${id}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ legalConsent: true }),
+      })
+      if (res.ok) {
+        setDone(true)
+        setTimeout(() => router.push(`/petition/${id}`), 2000)
+      } else {
+        const data = await res.json() as { error?: string }
+        setError(data.error ?? 'Ошибка подписания')
+      }
+    } catch {
+      setError('Ошибка сети. Попробуйте ещё раз.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   if (done) {
