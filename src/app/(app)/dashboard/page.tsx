@@ -1,67 +1,88 @@
-import { Topbar } from '@/components/layout/Topbar';
-import { Card, CardBody, CardHeader, CardFooter } from '@/components/ui/Card';
-import { StatusBadge } from '@/components/ui/Badge';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Button } from '@/components/ui/Button';
-import { formatDate, formatCurrency } from '@/lib/utils';
-import {
-  Vote, TrendingUp, Users, AlertCircle,
-  ChevronRight, Clock, CheckCircle2, FileText, Pen,
-} from 'lucide-react';
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { auth } from '@/lib/auth'
+import prisma from '@/lib/prisma'
+import { Topbar } from '@/components/layout/Topbar'
+import { Card, CardBody, CardHeader, CardFooter } from '@/components/ui/Card'
+import { StatusBadge } from '@/components/ui/Badge'
+import { ProgressBar } from '@/components/ui/ProgressBar'
+import { Button } from '@/components/ui/Button'
+import { formatDate } from '@/lib/utils'
+import { Users, FileText, Pen, CheckCircle2, ChevronRight, Plus, Clock } from 'lucide-react'
+import type { PetitionStatus } from '@/lib/petition-status'
 
-const ACTIVE_ASSEMBLY = {
-  id: '1',
-  title: 'Ремонт кровли дома №12',
-  status: 'VOTING',
-  deadline: new Date('2026-06-01'),
-  votedCount: 47,
-  totalCount: 120,
-  quorumPct: 50,
-};
+function petitionHref(id: string, status: PetitionStatus): string {
+  switch (status) {
+    case 'DISCUSSION':  return `/admin/petitions/${id}/discussion`
+    case 'AI_REVISION': return `/admin/petitions/${id}/revision`
+    case 'SIGNING':     return `/admin/petitions/${id}/signing`
+    case 'CLOSED':
+    case 'EXPORTED':    return `/admin/petitions/${id}/export`
+    default:            return `/admin/petitions`
+  }
+}
 
-const URGENT_PETITION = {
-  id: '2',
-  title: 'Обращение в УК по уборке территории',
-  signedCount: 89,
-  requiredCount: 100,
-};
+export default async function DashboardPage() {
+  const session = await auth()
+  if (!session?.user?.id) redirect('/login')
 
-const FINANCE_GOAL = {
-  id: '3',
-  title: 'Замена домофонов',
-  collected: 145000,
-  target: 200000,
-  myContribution: 1500,
-  myDue: 1500,
-};
+  const userId = session.user.id
 
-const ACTIVITIES = [
-  { id: '1', title: 'Покраска подъезда №3',     status: 'В работе',  deadline: new Date('2026-05-30') },
-  { id: '2', title: 'Обрезка деревьев',          status: 'Выполнено', deadline: new Date('2026-05-15') },
-  { id: '3', title: 'Установка видеонаблюдения', status: 'В работе',  deadline: new Date('2026-06-20') },
-  { id: '4', title: 'Ремонт детской площадки',   status: 'План',      deadline: new Date('2026-07-01') },
-];
+  const membership = await prisma.membership.findFirst({
+    where: { userId },
+    include: { org: true, apartment: true },
+  })
 
-export default function DashboardPage() {
-  const now = new Date();
-  const daysLeft = Math.ceil((ACTIVE_ASSEMBLY.deadline.getTime() - now.getTime()) / 86400000);
+  if (!membership) {
+    return (
+      <div className="flex flex-col" style={{ height: '100vh' }}>
+        <Topbar title="Главная" subtitle="Нет организации" />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-[#6B6B63]">Вы не привязаны ни к одной организации</p>
+        </div>
+      </div>
+    )
+  }
+
+  const orgId = membership.orgId
+
+  const [memberCount, petitions, mySignatures] = await Promise.all([
+    prisma.membership.count({ where: { orgId } }),
+    prisma.petition.findMany({
+      where: { orgId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: { _count: { select: { signatures: true, comments: true } } },
+    }),
+    prisma.petitionSignature.findMany({
+      where: { userId },
+      select: { petitionId: true },
+    }),
+  ])
+
+  const signedIds = new Set(mySignatures.map(s => s.petitionId))
+  const signingPetitions = petitions.filter(p => p.status === 'SIGNING')
+  const unsignedPetition = signingPetitions.find(p => !signedIds.has(p.id)) ?? null
+  const recentPetitions = petitions.slice(0, 6)
+
+  const subtitle = [
+    membership.org.name,
+    membership.apartment ? `кв. ${membership.apartment.number}` : null,
+  ].filter(Boolean).join(' · ')
 
   return (
     <div className="flex flex-col" style={{ height: '100vh' }}>
-      <Topbar
-        title="Главная"
-        subtitle="ЖК «Садовый» · Москва, ул. Садовая 12"
-      />
+      <Topbar title="Главная" subtitle={subtitle} />
 
       <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0">
 
-        {/* Stats strip */}
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 shrink-0">
           {[
-            { label: 'Собственников', value: '120', icon: Users },
-            { label: 'Голосований',   value: '1',   icon: Vote },
-            { label: 'Активностей',   value: '4',   icon: CheckCircle2 },
-            { label: 'Уведомлений',   value: '7',   icon: AlertCircle },
+            { label: 'Собственников',   value: memberCount,         icon: Users },
+            { label: 'Всего заявлений', value: petitions.length,    icon: FileText },
+            { label: 'На подписании',   value: signingPetitions.length, icon: Pen },
+            { label: 'Я подписал(а)',   value: mySignatures.length, icon: CheckCircle2 },
           ].map(({ label, value, icon: Icon }) => (
             <Card key={label}>
               <CardBody className="flex items-center gap-4 py-5">
@@ -77,139 +98,130 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Main 3-column layout — fills remaining height */}
+        {/* 2-column layout */}
         <div className="flex gap-5 flex-1 min-h-0">
 
-          {/* Col 1: Assembly (widest) */}
+          {/* Col 1: Active signing petition */}
           <div className="flex flex-col" style={{ flex: '0 0 38%' }}>
             <Card className="flex flex-col h-full">
               <CardHeader className="shrink-0">
-                <p className="text-xs text-[#6B6B63] uppercase tracking-wide mb-2">Активное собрание</p>
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-base font-semibold text-[#1A1A18] leading-snug">
-                    {ACTIVE_ASSEMBLY.title}
-                  </h2>
-                  <StatusBadge status={ACTIVE_ASSEMBLY.status} />
-                </div>
+                <p className="text-xs text-[#6B6B63] uppercase tracking-wide mb-2">
+                  Требует вашей подписи
+                </p>
+                <h2 className="text-base font-semibold text-[#1A1A18] leading-snug">
+                  {unsignedPetition ? unsignedPetition.title : 'Нет активных сборов'}
+                </h2>
               </CardHeader>
 
-              <CardBody className="flex flex-col flex-1 gap-4">
-                <ProgressBar
-                  value={ACTIVE_ASSEMBLY.votedCount}
-                  max={ACTIVE_ASSEMBLY.totalCount}
-                  label={`Проголосовали ${ACTIVE_ASSEMBLY.votedCount} из ${ACTIVE_ASSEMBLY.totalCount}`}
-                  sublabel={`${Math.round((ACTIVE_ASSEMBLY.votedCount / ACTIVE_ASSEMBLY.totalCount) * 100)}%`}
-                  variant="amber"
-                />
-
-                <div className="flex items-center gap-2 text-sm text-[#6B6B63]">
-                  <Clock size={14} className="shrink-0" />
-                  <span>Закрывается</span>
-                  <span className="font-medium text-[#1A1A18]">{formatDate(ACTIVE_ASSEMBLY.deadline)}</span>
-                  <span className={`ml-auto font-semibold tabular-nums ${daysLeft <= 3 ? 'text-red-600' : 'text-[#1A1A18]'}`}>
-                    {daysLeft} дн.
-                  </span>
-                </div>
-
-                <div className="mt-auto p-3 bg-[#FFF8EC] border border-[#F0D080]">
-                  <div className="flex items-start gap-2.5 mb-3">
-                    <AlertCircle size={15} className="text-[#8A5A00] shrink-0 mt-0.5" />
-                    <p className="text-sm text-[#5A3C00]">Вы ещё не проголосовали по этому вопросу</p>
+              {unsignedPetition ? (
+                <CardBody className="flex flex-col flex-1 gap-4">
+                  <ProgressBar
+                    value={unsignedPetition._count.signatures}
+                    max={memberCount || 1}
+                    label={`${unsignedPetition._count.signatures} из ${memberCount} подписей`}
+                    sublabel={`${Math.round((unsignedPetition._count.signatures / (memberCount || 1)) * 100)}%`}
+                    variant="forest"
+                  />
+                  {unsignedPetition.signingDeadline && (
+                    <div className="flex items-center gap-2 text-sm text-[#6B6B63]">
+                      <Clock size={14} className="shrink-0" />
+                      <span>Срок подписания:</span>
+                      <span className="font-medium text-[#1A1A18]">
+                        {formatDate(unsignedPetition.signingDeadline)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-auto">
+                    <Link href={`/petition/${unsignedPetition.id}/sign`}>
+                      <Button variant="primary" className="w-full">Подписать заявление</Button>
+                    </Link>
                   </div>
-                  <Button variant="amber" size="sm" className="w-full">Перейти к голосованию</Button>
-                </div>
-              </CardBody>
+                </CardBody>
+              ) : (
+                <CardBody className="flex flex-col flex-1 items-center justify-center gap-4 text-center">
+                  <CheckCircle2 size={32} className="text-[#C0BBB0]" />
+                  <p className="text-sm text-[#6B6B63]">
+                    {petitions.length === 0
+                      ? 'Заявлений пока нет'
+                      : 'Все активные заявления подписаны'}
+                  </p>
+                  <Link href="/admin/petitions/new">
+                    <Button variant="ghost" size="sm" className="gap-1">
+                      <Plus size={14} /> Создать заявление
+                    </Button>
+                  </Link>
+                </CardBody>
+              )}
 
               <CardFooter className="flex items-center justify-between shrink-0">
-                <span className="text-xs text-[#6B6B63]">Кворум: {ACTIVE_ASSEMBLY.quorumPct}% от площади</span>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                  Открыть <ChevronRight size={13} />
-                </Button>
+                <span className="text-xs text-[#6B6B63]">
+                  {signingPetitions.length} на подписании
+                </span>
+                <Link href="/admin/petitions">
+                  <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                    Все заявления <ChevronRight size={13} />
+                  </Button>
+                </Link>
               </CardFooter>
             </Card>
           </div>
 
-          {/* Col 2: Petition + Finance */}
-          <div className="flex flex-col gap-5" style={{ flex: '0 0 30%' }}>
-            <Card className="flex flex-col">
-              <CardHeader>
-                <p className="text-xs text-[#6B6B63] uppercase tracking-wide mb-2">Сбор подписей</p>
-                <div className="flex items-start gap-2.5">
-                  <Pen size={14} className="text-[#0A3D2E] mt-0.5 shrink-0" />
-                  <p className="text-sm font-medium text-[#1A1A18] leading-snug">
-                    {URGENT_PETITION.title}
-                  </p>
-                </div>
-              </CardHeader>
-              <CardBody className="flex flex-col gap-4">
-                <ProgressBar
-                  value={URGENT_PETITION.signedCount}
-                  max={URGENT_PETITION.requiredCount}
-                  label={`${URGENT_PETITION.signedCount} из ${URGENT_PETITION.requiredCount} подписей`}
-                  variant="forest"
-                />
-                <Button variant="primary" size="sm">Подписать</Button>
-              </CardBody>
-            </Card>
-
-            <Card className="flex flex-col flex-1">
-              <CardHeader>
-                <p className="text-xs text-[#6B6B63] uppercase tracking-wide mb-2">Финансовый сбор</p>
-                <div className="flex items-start gap-2.5">
-                  <TrendingUp size={14} className="text-[#0A3D2E] mt-0.5 shrink-0" />
-                  <p className="text-sm font-medium text-[#1A1A18]">{FINANCE_GOAL.title}</p>
-                </div>
-              </CardHeader>
-              <CardBody className="flex flex-col gap-4">
-                <ProgressBar
-                  value={FINANCE_GOAL.collected}
-                  max={FINANCE_GOAL.target}
-                  label={formatCurrency(FINANCE_GOAL.collected)}
-                  sublabel={`из ${formatCurrency(FINANCE_GOAL.target)}`}
-                  variant="forest"
-                />
-                <div className="flex items-center justify-between text-sm pt-3 border-t border-[#E0DBD0]">
-                  <span className="text-[#6B6B63]">Ваш взнос</span>
-                  <span className="font-semibold text-[#1A6B3A]">
-                    {FINANCE_GOAL.myContribution >= FINANCE_GOAL.myDue ? '✓ Оплачено' : formatCurrency(FINANCE_GOAL.myDue)}
-                  </span>
-                </div>
-              </CardBody>
-            </Card>
-          </div>
-
-          {/* Col 3: Activities */}
+          {/* Col 2: Recent petitions */}
           <div className="flex flex-col flex-1 min-w-0">
             <Card className="flex flex-col h-full">
               <CardHeader className="flex items-center justify-between shrink-0">
-                <p className="text-xs text-[#6B6B63] uppercase tracking-wide">Активности</p>
-                <Button variant="ghost" size="sm" className="text-xs gap-0.5 -mr-1">
-                  Все <ChevronRight size={12} />
-                </Button>
+                <p className="text-xs text-[#6B6B63] uppercase tracking-wide">Последние заявления</p>
+                <Link href="/admin/petitions">
+                  <Button variant="ghost" size="sm" className="text-xs gap-0.5 -mr-1">
+                    Все <ChevronRight size={12} />
+                  </Button>
+                </Link>
               </CardHeader>
-              <div className="flex flex-col divide-y divide-[#E0DBD0] flex-1">
-                {ACTIVITIES.map((a) => (
-                  <div key={a.id} className="flex flex-col gap-2 px-5 py-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm text-[#1A1A18] leading-snug">{a.title}</p>
-                      <div className={`w-1.5 h-1.5 mt-1.5 shrink-0 ${
-                        a.status === 'Выполнено' ? 'bg-[#1A6B3A]'
-                        : a.status === 'В работе' ? 'bg-[#E8A020]'
-                        : 'bg-[#C0BBB0]'
-                      }`} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[#6B6B63]">{a.status}</span>
-                      <span className="text-xs text-[#6B6B63]">{formatDate(a.deadline)}</span>
-                    </div>
+
+              {recentPetitions.length === 0 ? (
+                <CardBody className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-sm text-[#6B6B63] mb-3">Заявлений пока нет</p>
+                    <Link href="/admin/petitions/new">
+                      <Button variant="primary" size="sm" className="gap-1">
+                        <Plus size={14} /> Создать первое
+                      </Button>
+                    </Link>
                   </div>
-                ))}
-              </div>
+                </CardBody>
+              ) : (
+                <div className="flex flex-col divide-y divide-[#E0DBD0] flex-1 overflow-y-auto">
+                  {recentPetitions.map(p => (
+                    <Link
+                      key={p.id}
+                      href={petitionHref(p.id, p.status as PetitionStatus)}
+                      className="block hover:bg-[#F7F5F0] transition-colors"
+                    >
+                      <div className="flex flex-col gap-1.5 px-5 py-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-[#1A1A18] leading-snug line-clamp-2 flex-1">
+                            {p.title}
+                          </p>
+                          <StatusBadge status={p.status} />
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-[#6B6B63]">
+                          <span>{p._count.signatures} подп.</span>
+                          <span>{p._count.comments} комм.</span>
+                          {signedIds.has(p.id) && (
+                            <span className="text-[#1A6B3A] font-medium">✓ подписано</span>
+                          )}
+                          <span className="ml-auto">{formatDate(p.createdAt)}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
 
         </div>
       </div>
     </div>
-  );
+  )
 }

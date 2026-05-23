@@ -1,24 +1,29 @@
-'use client';
 import { cn } from '@/lib/utils';
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT:      'Черновик',
-  ANNOUNCED:  'Объявлено',
-  DISCUSSION: 'Обсуждение',
-  VOTING:     'Голосование',
-  CLOSED:     'Завершено',
-  SIGNED:     'Подписано',
-  ARCHIVED:   'Архив',
+  DRAFT:       'Черновик',
+  ANNOUNCED:   'Объявлено',
+  DISCUSSION:  'Обсуждение',
+  AI_REVISION: 'AI-ревизия',
+  SIGNING:     'Подписание',
+  VOTING:      'Голосование',
+  CLOSED:      'Завершено',
+  EXPORTED:    'Экспортировано',
+  SIGNED:      'Подписано',
+  ARCHIVED:    'Архив',
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  DRAFT:      'bg-[#F0EDE6] text-[#6B6B63]',
-  ANNOUNCED:  'bg-[#EAF0FF] text-[#3A5FC8]',
-  DISCUSSION: 'bg-[#EAF0FF] text-[#3A5FC8]',
-  VOTING:     'bg-[#FFF3DC] text-[#8A5A00]',
-  CLOSED:     'bg-[#E6F5EE] text-[#1A6B3A]',
-  SIGNED:     'bg-[#E6F5EE] text-[#1A6B3A]',
-  ARCHIVED:   'bg-[#F0EDE6] text-[#6B6B63]',
+  DRAFT:       'bg-[#F0EDE6] text-[#6B6B63]',
+  ANNOUNCED:   'bg-[#EAF0FF] text-[#3A5FC8]',
+  DISCUSSION:  'bg-[#EAF0FF] text-[#3A5FC8]',
+  AI_REVISION: 'bg-[#F3E8FF] text-[#7C3AED]',
+  SIGNING:     'bg-[#FFF3DC] text-[#8A5A00]',
+  VOTING:      'bg-[#FFF3DC] text-[#8A5A00]',
+  CLOSED:      'bg-[#E6F5EE] text-[#1A6B3A]',
+  EXPORTED:    'bg-[#E6F5EE] text-[#1A6B3A]',
+  SIGNED:      'bg-[#E6F5EE] text-[#1A6B3A]',
+  ARCHIVED:    'bg-[#F0EDE6] text-[#6B6B63]',
 };
 
 interface BadgeProps {
