@@ -1,7 +1,12 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = process.env.EMAIL_FROM!
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
+  return _resend
+}
+
+const FROM = () => process.env.EMAIL_FROM!
 
 function escapeHtml(s: string): string {
   return s
@@ -17,8 +22,8 @@ export async function sendNotSignedNotification(
 ): Promise<void> {
   const safeTitle = escapeHtml(petitionTitle)
   const safeSubjectTitle = petitionTitle.replace(/[\r\n]/g, ' ')
-  await resend.emails.send({
-    from: FROM,
+  await getResend().emails.send({
+    from: FROM(),
     to: email,
     subject: `Срок подписания истёк — «${safeSubjectTitle}»`,
     html: `
@@ -40,8 +45,8 @@ export async function sendSigningInvite(
   const safeTitle = escapeHtml(petitionTitle)
   const safeSubjectTitle = petitionTitle.replace(/[\r\n]/g, ' ')
   const safeUrl = escapeHtml(petitionUrl)
-  await resend.emails.send({
-    from: FROM,
+  await getResend().emails.send({
+    from: FROM(),
     to: email,
     subject: `Финальный текст готов — подпишите заявление «${safeSubjectTitle}»`,
     html: `
