@@ -70,21 +70,12 @@ jobs:
             set -e
             cd /var/www/garden-manager
 
-            # Load env so DATABASE_URL is available for prisma CLI
-            set -a; source .env; set +a
-
             git pull origin main
 
             # Full install including devDeps needed for next build
             npm ci
             npx prisma generate
-
-            # Build before migrate — fail-fast before touching DB
             npm run build
 
-            # Apply migrations after successful build
-            npx prisma migrate deploy
-
-            # Restart app with updated env
-            pm2 restart garden-manager --update-env || pm2 start npm --name garden-manager -- start -- --port 3003
-            pm2 save
+            # Migrations + PM2 restart are handled by provision-garden.sh on smain
+            # (secrets are managed by keymaster, not stored on hoster)
