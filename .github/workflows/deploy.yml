@@ -28,10 +28,12 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
           AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
@@ -67,10 +69,15 @@ jobs:
           script: |
             set -e
             cd /var/www/garden-manager
+
+            # Load env so DATABASE_URL is available for prisma CLI
+            set -a; source .env; set +a
+
             git pull origin main
 
             # Full install including devDeps needed for next build
             npm ci
+            npx prisma generate
 
             # Build before migrate — fail-fast before touching DB
             npm run build
@@ -78,6 +85,6 @@ jobs:
             # Apply migrations after successful build
             npx prisma migrate deploy
 
-            # Restart app with new build
-            pm2 restart garden-manager || pm2 start npm --name garden-manager -- start
+            # Restart app with updated env
+            pm2 restart garden-manager --update-env || pm2 start npm --name garden-manager -- start -- --port 3003
             pm2 save
