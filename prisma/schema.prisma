@@ -73,6 +73,7 @@ model User {
   email         String?   @unique
   phone         String?   @unique
   name          String?
+  password      String?
   emailVerified DateTime?
   phoneVerified DateTime?
   createdAt     DateTime  @default(now())

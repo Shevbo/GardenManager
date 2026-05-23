@@ -1,40 +1,52 @@
 import NextAuth from 'next-auth'
-import { PrismaAdapter } from '@auth/prisma-adapter'
-import Google from 'next-auth/providers/google'
-import Resend from 'next-auth/providers/resend'
-import VK from 'next-auth/providers/vk'
-import Yandex from 'next-auth/providers/yandex'
+import Credentials from 'next-auth/providers/credentials'
+import bcrypt from 'bcryptjs'
 import prisma from './prisma'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   providers: [
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-    }),
-    VK({
-      clientId: process.env.AUTH_VK_ID!,
-      clientSecret: process.env.AUTH_VK_SECRET!,
-    }),
-    Yandex({
-      clientId: process.env.AUTH_YANDEX_ID!,
-      clientSecret: process.env.AUTH_YANDEX_SECRET!,
-    }),
-    Resend({
-      apiKey: process.env.RESEND_API_KEY!,
-      from: process.env.EMAIL_FROM!,
+    Credentials({
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Пароль', type: 'password' },
+      },
+      async authorize(credentials) {
+        const email = (credentials?.email as string | undefined)?.trim().toLowerCase()
+        const password = credentials?.password as string | undefined
+        if (!email || !password) return null
+
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true, email: true, name: true, password: true },
+        })
+        if (!user?.password) return null
+
+        const ok = await bcrypt.compare(password, user.password)
+        if (!ok) return null
+
+        return { id: user.id, email: user.email ?? undefined, name: user.name ?? undefined }
+      },
     }),
   ],
   callbacks: {
-    session({ session, user }) {
-      session.user.id = user.id
+    jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.email = user.email
+      }
+      return token
+    },
+    session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string
+        if (token.email) session.user.email = token.email
+      }
       return session
     },
   },
-  pages: {
-    signIn: '/login',
-  },
-  secret: process.env.AUTH_SECRET,
+  pages: { signIn: '/login' },
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
+  secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
 })
