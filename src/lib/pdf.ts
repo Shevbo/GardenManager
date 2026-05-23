@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
   cellDate: { width: '20%' },
   cellVerif: { width: '15%' },
   header: { backgroundColor: '#f0f0f0', fontWeight: 'bold' },
-  disclaimer: { fontSize: 9, color: '#555', marginTop: 20, fontStyle: 'italic' },
+  disclaimer: { fontSize: 9, color: '#555', marginTop: 20 },
 })
 
 export interface RegistryRow {
