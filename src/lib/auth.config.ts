@@ -3,6 +3,7 @@ import type { NextAuthConfig } from 'next-auth'
 // Edge-safe config — без bcryptjs, только для middleware
 export const authConfig: NextAuthConfig = {
   pages: { signIn: '/login' },
+  session: { strategy: 'jwt' },
   callbacks: {
     authorized({ auth, request }) {
       const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
