@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Golos+Text:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Brand palette */
+  --forest:     #0A3D2E;
+  --forest-mid: #145C43;
+  --forest-light: #1E7A58;
+  --amber:      #E8A020;
+  --amber-light: #F5C050;
+  --cream:      #F7F5F0;
+  --cream-dark: #EAE6DC;
+  --ink:        #1A1A18;
+  --ink-mid:    #3D3D38;
+  --ink-soft:   #6B6B63;
+  --white:      #FFFFFF;
+
+  /* Status colors */
+  --status-draft:     #94A3B8;
+  --status-announced: #60A5FA;
+  --status-discussion:#818CF8;
+  --status-voting:    #F59E0B;
+  --status-closed:    #34D399;
+  --status-signed:    #10B981;
+  --status-archived:  #6B7280;
+
+  /* Semantic */
+  --bg:        var(--cream);
+  --bg-card:   var(--white);
+  --text:      var(--ink);
+  --text-muted: var(--ink-soft);
+  --border:    #D6D0C4;
+  --accent:    var(--forest);
+  --accent-fg: var(--white);
+}
+
+@theme inline {
+  --color-forest:       #0A3D2E;
+  --color-forest-mid:   #145C43;
+  --color-forest-light: #1E7A58;
+  --color-amber:        #E8A020;
+  --color-amber-light:  #F5C050;
+  --color-cream:        #F7F5F0;
+  --color-cream-dark:   #EAE6DC;
+  --color-ink:          #1A1A18;
+  --color-ink-mid:      #3D3D38;
+  --color-ink-soft:     #6B6B63;
+  --font-display: 'Unbounded', sans-serif;
+  --font-body:    'Golos Text', sans-serif;
+}
+
+/* Tailwind v4 utility shortcuts for custom colors */
+.bg-forest       { background-color: #0A3D2E; }
+.bg-forest-mid   { background-color: #145C43; }
+.bg-forest-light { background-color: #1E7A58; }
+.bg-amber        { background-color: #E8A020; }
+.bg-amber-light  { background-color: #F5C050; }
+.bg-cream        { background-color: #F7F5F0; }
+.bg-cream-dark   { background-color: #EAE6DC; }
+.bg-ink          { background-color: #1A1A18; }
+
+.text-forest       { color: #0A3D2E; }
+.text-forest-mid   { color: #145C43; }
+.text-forest-light { color: #1E7A58; }
+.text-amber        { color: #E8A020; }
+.text-amber-light  { color: #F5C050; }
+.text-cream        { color: #F7F5F0; }
+.text-cream-dark   { color: #EAE6DC; }
+.text-ink          { color: #1A1A18; }
+.text-ink-mid      { color: #3D3D38; }
+.text-ink-soft     { color: #6B6B63; }
+
+.border-forest    { border-color: #0A3D2E; }
+.border-amber     { border-color: #E8A020; }
+.border-cream     { border-color: #F7F5F0; }
+
+.ring-forest\/10  { --tw-ring-color: rgb(10 61 46 / 0.1); }
+.ring-amber\/20   { --tw-ring-color: rgb(232 160 32 / 0.2); }
+.ring-amber\/30   { --tw-ring-color: rgb(232 160 32 / 0.3); }
+
+.hover\:bg-forest-mid:hover { background-color: #145C43; }
+.hover\:bg-amber-light:hover { background-color: #F5C050; }
+.hover\:bg-cream-dark:hover { background-color: #EAE6DC; }
+.hover\:text-ink:hover { color: #1A1A18; }
+.hover\:border-forest:hover { border-color: #0A3D2E; }
+.hover\:border-forest\/40:hover { border-color: rgba(10,61,46,0.4); }
+
+.focus\:border-forest:focus { border-color: #0A3D2E; }
+.focus\:ring-forest\/10:focus { --tw-ring-color: rgb(10 61 46 / 0.1); }
+.focus-within\:border-forest:focus-within { border-color: #0A3D2E; }
+.focus-within\:ring-forest\/10:focus-within { --tw-ring-color: rgb(10 61 46 / 0.1); }
+
+.font-display { font-family: 'Unbounded', sans-serif; }
+.font-body    { font-family: 'Golos Text', sans-serif; }
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Golos Text', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: 'Unbounded', sans-serif;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cream-dark); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-soft); }
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
