@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { sendNotSignedNotification } from '@/lib/email'
-import { canTransition } from '@/lib/petition-status'
+import { canTransition, PetitionStatus } from '@/lib/petition-status'
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -25,7 +25,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  if (!canTransition(petition.status as 'DRAFT' | 'DISCUSSION' | 'AI_REVISION' | 'SIGNING' | 'CLOSED' | 'EXPORTED', 'CLOSED')) {
+  if (!canTransition(petition.status as PetitionStatus, 'CLOSED')) {
     return NextResponse.json({ error: 'Cannot close petition from current status' }, { status: 400 })
   }
 
@@ -35,9 +35,13 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     .filter(m => !signerIds.has(m.userId) && m.user.email)
     .map(m => m.user)
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     notSigners.map(u => sendNotSignedNotification(u.email!, petition.title))
   )
+  const failedCount = results.filter(r => r.status === 'rejected').length
+  if (failedCount > 0) {
+    console.error(`Failed to send ${failedCount}/${notSigners.length} non-signer notifications for petition ${id}`)
+  }
 
   const updated = await prisma.petition.update({
     where: { id },

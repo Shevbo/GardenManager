@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
-  const { legalConsent, verifiedVia } = body as { legalConsent?: boolean; verifiedVia?: string }
+  const { legalConsent } = body as { legalConsent?: boolean }
 
   if (!legalConsent) {
     return NextResponse.json({ error: 'Необходимо принять условия' }, { status: 400 })
@@ -41,8 +41,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // Derive verifiedVia server-side only (never trust client)
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })
-  const via = verifiedVia ?? (user?.phoneVerified ? 'sms' : 'email')
+
+  // User must have at least one verified channel
+  if (!user?.phoneVerified && !user?.emailVerified) {
+    return NextResponse.json({ error: 'Необходима верификация канала связи' }, { status: 403 })
+  }
+
+  const via = user.phoneVerified ? 'sms' : 'email'
 
   const signature = await prisma.petitionSignature.upsert({
     where: { petitionId_userId: { petitionId: id, userId: session.user.id } },
@@ -52,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       verifiedVia: via,
       legalConsent: true,
     },
-    update: { signedAt: new Date() },
+    update: { signedAt: new Date(), verifiedVia: via, legalConsent: true },
   })
 
   return NextResponse.json(signature, { status: 201 })
