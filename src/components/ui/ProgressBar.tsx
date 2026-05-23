@@ -5,7 +5,7 @@ interface ProgressBarProps {
   max?: number;
   label?: string;
   sublabel?: string;
-  variant?: 'forest' | 'amber';
+  variant?: 'forest' | 'amber' | 'emerald';
   className?: string;
 }
 
@@ -31,7 +31,7 @@ export function ProgressBar({
         <div
           className={cn(
             'h-full transition-all duration-700 ease-out',
-            variant === 'amber' ? 'bg-[#E8A020]' : 'bg-[#0A3D2E]',
+            variant === 'amber' ? 'bg-[#E8A020]' : 'bg-[#0A3D2E]', // emerald = forest alias
           )}
           style={{ width: `${pct}%` }}
         />
