@@ -66,7 +66,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   }
 
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')
-  return new NextResponse(pdf, {
+  return new NextResponse(pdf as unknown as BodyInit, {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="petition-${safeId}.pdf"`,
