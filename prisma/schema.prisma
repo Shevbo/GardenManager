@@ -48,6 +48,9 @@ model Building {
 
   org        Organization @relation(fields: [orgId], references: [id])
   apartments Apartment[]
+
+  @@unique([orgId, address])
+  @@index([orgId])
 }
 
 model Apartment {
@@ -60,6 +63,9 @@ model Apartment {
 
   building    Building     @relation(fields: [buildingId], references: [id])
   memberships Membership[]
+
+  @@unique([buildingId, number])
+  @@index([buildingId])
 }
 
 model User {
@@ -71,11 +77,12 @@ model User {
   phoneVerified DateTime?
   createdAt     DateTime  @default(now())
 
-  accounts    Account[]
-  sessions    Session[]
-  memberships Membership[]
-  comments    PetitionComment[]
-  signatures  PetitionSignature[]
+  accounts         Account[]
+  sessions         Session[]
+  memberships      Membership[]
+  comments         PetitionComment[]
+  signatures       PetitionSignature[]
+  createdPetitions Petition[]          @relation("PetitionCreator")
 }
 
 model Account {
@@ -94,6 +101,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -103,6 +111,8 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -128,6 +138,8 @@ model Membership {
   apartment Apartment?   @relation(fields: [apartmentId], references: [id])
 
   @@unique([userId, orgId])
+  @@index([orgId])
+  @@index([apartmentId])
 }
 
 model Petition {
@@ -143,11 +155,15 @@ model Petition {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  org         Organization         @relation(fields: [orgId], references: [id])
-  materials   PetitionMaterial[]
-  comments    PetitionComment[]
-  signatures  PetitionSignature[]
-  aiRevisions PetitionAIRevision[]
+  org           Organization         @relation(fields: [orgId], references: [id])
+  createdByUser User                 @relation("PetitionCreator", fields: [createdBy], references: [id])
+  materials     PetitionMaterial[]
+  comments      PetitionComment[]
+  signatures    PetitionSignature[]
+  aiRevisions   PetitionAIRevision[]
+
+  @@index([orgId])
+  @@index([orgId, status])
 }
 
 model PetitionMaterial {
@@ -159,6 +175,8 @@ model PetitionMaterial {
   createdAt  DateTime @default(now())
 
   petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+
+  @@index([petitionId])
 }
 
 model PetitionComment {
@@ -171,6 +189,9 @@ model PetitionComment {
 
   petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id])
+
+  @@index([petitionId])
+  @@index([userId])
 }
 
 model PetitionAIRevision {
@@ -186,6 +207,8 @@ model PetitionAIRevision {
   createdAt     DateTime  @default(now())
 
   petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+
+  @@index([petitionId])
 }
 
 model PetitionSignature {
@@ -196,7 +219,7 @@ model PetitionSignature {
   legalConsent Boolean  @default(false)
   signedAt     DateTime @default(now())
 
-  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Restrict)
   user     User     @relation(fields: [userId], references: [id])
 
   @@unique([petitionId, userId])

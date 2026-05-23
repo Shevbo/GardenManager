@@ -26,4 +26,7 @@ describe('petition status machine', () => {
   it('blocks EXPORTED → anything', () => {
     expect(canTransition('EXPORTED', 'CLOSED')).toBe(false)
   })
+  it('blocks same-status transition', () => {
+    expect(canTransition('DRAFT', 'DRAFT')).toBe(false)
+  })
 })
