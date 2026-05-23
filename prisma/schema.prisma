@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrgType {
+  zhk
+  kooperativ
+}
+
+enum Role {
+  platform_admin
+  coalition_admin
+  org_admin
+  council_member
+  owner
+  tenant
+}
+
+enum PetitionStatus {
+  DRAFT
+  DISCUSSION
+  AI_REVISION
+  SIGNING
+  CLOSED
+  EXPORTED
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  type      OrgType
+  createdAt DateTime @default(now())
+
+  buildings   Building[]
+  memberships Membership[]
+  petitions   Petition[]
+}
+
+model Building {
+  id      String @id @default(cuid())
+  orgId   String
+  address String
+
+  org        Organization @relation(fields: [orgId], references: [id])
+  apartments Apartment[]
+}
+
+model Apartment {
+  id         String  @id @default(cuid())
+  buildingId String
+  number     String
+  floor      Int?
+  entrance   Int?
+  areaSqm    Float?
+
+  building    Building     @relation(fields: [buildingId], references: [id])
+  memberships Membership[]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  phone         String?   @unique
+  name          String?
+  emailVerified DateTime?
+  phoneVerified DateTime?
+  createdAt     DateTime  @default(now())
+
+  accounts    Account[]
+  sessions    Session[]
+  memberships Membership[]
+  comments    PetitionComment[]
+  signatures  PetitionSignature[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  userId      String
+  orgId       String
+  apartmentId String?
+  role        Role      @default(owner)
+  isOwner     Boolean   @default(false)
+  areaSqm     Float?
+  verifiedAt  DateTime?
+
+  user      User         @relation(fields: [userId], references: [id])
+  org       Organization @relation(fields: [orgId], references: [id])
+  apartment Apartment?   @relation(fields: [apartmentId], references: [id])
+
+  @@unique([userId, orgId])
+}
+
+model Petition {
+  id                 String         @id @default(cuid())
+  orgId              String
+  title              String
+  draftText          String         @db.Text
+  finalText          String?        @db.Text
+  status             PetitionStatus @default(DRAFT)
+  discussionDeadline DateTime?
+  signingDeadline    DateTime?
+  createdBy          String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  org         Organization         @relation(fields: [orgId], references: [id])
+  materials   PetitionMaterial[]
+  comments    PetitionComment[]
+  signatures  PetitionSignature[]
+  aiRevisions PetitionAIRevision[]
+}
+
+model PetitionMaterial {
+  id         String   @id @default(cuid())
+  petitionId String
+  url        String
+  name       String
+  mimeType   String
+  createdAt  DateTime @default(now())
+
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+}
+
+model PetitionComment {
+  id          String   @id @default(cuid())
+  petitionId  String
+  userId      String
+  text        String   @db.Text
+  attachments Json?
+  createdAt   DateTime @default(now())
+
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model PetitionAIRevision {
+  id            String    @id @default(cuid())
+  petitionId    String
+  inputDraft    String    @db.Text
+  inputComments Json
+  aiSuggestion  String    @db.Text
+  aiSummary     String?   @db.Text
+  finalText     String?   @db.Text
+  approvedAt    DateTime?
+  approvedBy    String?
+  createdAt     DateTime  @default(now())
+
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+}
+
+model PetitionSignature {
+  id           String   @id @default(cuid())
+  petitionId   String
+  userId       String
+  verifiedVia  String
+  legalConsent Boolean  @default(false)
+  signedAt     DateTime @default(now())
+
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([petitionId, userId])
+}
