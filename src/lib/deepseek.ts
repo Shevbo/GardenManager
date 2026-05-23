@@ -7,6 +7,10 @@ export async function revisePetitionWithComments(
   draftText: string,
   comments: Array<{ text: string; user: { name?: string | null; email?: string | null } }>
 ): Promise<RevisionResult> {
+  if (!process.env.DEEPSEEK_API_KEY || !process.env.DEEPSEEK_BASE_URL) {
+    throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
+  }
+
   const commentsFormatted = comments
     .map((c, i) => `[${i + 1}] ${c.user.name ?? c.user.email ?? 'Собственник'}: ${c.text}`)
     .join('\n')
@@ -43,7 +47,14 @@ export async function revisePetitionWithComments(
     throw new Error(`DeepSeek API error: ${err}`)
   }
 
-  const data = await response.json()
-  const result = JSON.parse(data.choices[0].message.content) as RevisionResult
-  return result
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> }
+  const parsed: unknown = JSON.parse(data.choices[0].message.content)
+  if (
+    typeof parsed !== 'object' || parsed === null ||
+    !('revisedText' in parsed) || typeof (parsed as { revisedText: unknown }).revisedText !== 'string' ||
+    !('summary' in parsed) || typeof (parsed as { summary: unknown }).summary !== 'string'
+  ) {
+    throw new Error('DeepSeek returned unexpected response shape')
+  }
+  return parsed as RevisionResult
 }
