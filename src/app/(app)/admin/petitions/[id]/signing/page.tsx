@@ -4,6 +4,9 @@ import prisma from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { ProgressBar } from '@/components/ui/ProgressBar'
+import { sendNotSignedNotification } from '@/lib/email'
+import { canTransition } from '@/lib/petition-status'
+import type { PetitionStatus } from '@/lib/petition-status'
 
 export default async function SigningPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,20 +20,42 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
         include: { user: { select: { name: true, email: true, phone: true } } },
         orderBy: { signedAt: 'desc' },
       },
-      org: { include: { memberships: true } },
+      org: {
+        include: {
+          memberships: {
+            include: { user: { select: { id: true, email: true } } },
+          },
+        },
+      },
     },
   })
   if (!petition) notFound()
 
-  const totalMembers = petition.org.memberships.length
+  const totalMembers = petition.org.memberships.filter(m => m.isOwner).length
   const signedCount = petition.signatures.length
 
   async function closePetition() {
     'use server'
-    await fetch(`${process.env.NEXTAUTH_URL}/api/petitions/${id}/close`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const session = await auth()
+    if (!session?.user) redirect('/login')
+
+    const membership = await prisma.membership.findFirst({
+      where: { userId: session.user.id, orgId: petition!.orgId },
     })
+    if (!membership) redirect('/login')
+
+    if (!canTransition(petition!.status as PetitionStatus, 'CLOSED')) return
+
+    const signerIds = new Set(petition!.signatures.map(s => s.userId))
+    const notSigners = petition!.org.memberships
+      .filter(m => !signerIds.has(m.userId) && m.user.email)
+      .map(m => m.user)
+
+    await Promise.allSettled(
+      notSigners.map(u => sendNotSignedNotification(u.email!, petition!.title))
+    )
+
+    await prisma.petition.update({ where: { id }, data: { status: 'CLOSED' } })
     redirect(`/admin/petitions/${id}/export`)
   }
 

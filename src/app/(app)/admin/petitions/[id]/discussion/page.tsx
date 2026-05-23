@@ -3,6 +3,10 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
+import { canTransition } from '@/lib/petition-status'
+import type { PetitionStatus } from '@/lib/petition-status'
+
+const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
 export default async function DiscussionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -24,10 +28,20 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
     'use server'
     const sess = await auth()
     if (!sess?.user) redirect('/login')
+
+    // Re-read petition to get fresh state (not from render-time closure)
+    const current = await prisma.petition.findUnique({ where: { id } })
+    if (!current) redirect('/admin/petitions')
+
     const membership = await prisma.membership.findFirst({
-      where: { userId: sess.user.id, orgId: petition.orgId },
+      where: { userId: sess.user.id, orgId: current.orgId },
     })
-    if (!membership) redirect('/login')
+    if (!membership || !ADMIN_ROLES.includes(membership.role)) redirect('/login')
+
+    if (!canTransition(current.status as PetitionStatus, 'AI_REVISION')) {
+      redirect(`/admin/petitions/${id}/discussion`)
+    }
+
     await prisma.petition.update({
       where: { id },
       data: { status: 'AI_REVISION' },

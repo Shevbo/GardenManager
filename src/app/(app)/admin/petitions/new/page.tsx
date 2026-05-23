@@ -26,22 +26,32 @@ export default function NewPetitionPage() {
     if (!orgId) { setError('Организация не найдена'); return }
     setLoading(true)
     setError('')
-    const res = await fetch('/api/petitions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orgId, title, draftText, discussionDeadline, signingDeadline }),
-    })
-    const data = await res.json() as { id?: string; error?: string }
-    setLoading(false)
-    if (res.ok && data.id) {
-      await fetch(`/api/petitions/${data.id}`, {
+    try {
+      const res = await fetch('/api/petitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId, title, draftText, discussionDeadline, signingDeadline }),
+      })
+      const data = await res.json() as { id?: string; error?: string }
+      if (!res.ok || !data.id) {
+        setError(data.error ?? 'Ошибка создания')
+        return
+      }
+      const patchRes = await fetch(`/api/petitions/${data.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'DISCUSSION' }),
       })
+      if (!patchRes.ok) {
+        const patchData = await patchRes.json() as { error?: string }
+        setError(patchData.error ?? 'Ошибка открытия обсуждения')
+        return
+      }
       router.push(`/admin/petitions/${data.id}/discussion`)
-    } else {
-      setError(data.error ?? 'Ошибка создания')
+    } catch {
+      setError('Ошибка сети. Попробуйте ещё раз.')
+    } finally {
+      setLoading(false)
     }
   }
 

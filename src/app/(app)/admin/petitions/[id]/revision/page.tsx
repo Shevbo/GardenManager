@@ -43,11 +43,16 @@ export default function RevisionPage() {
         body: JSON.stringify({ finalText, revisionId: revision.id }),
       })
       if (res.ok) {
-        await fetch(`/api/petitions/${id}`, {
+        const statusRes = await fetch(`/api/petitions/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'SIGNING' }),
         })
+        if (!statusRes.ok) {
+          const d = await statusRes.json() as { error?: string }
+          setError(d.error ?? 'Ошибка перехода к подписанию')
+          return
+        }
         router.push(`/admin/petitions/${id}/signing`)
       } else {
         const data = await res.json() as { error?: string }

@@ -9,7 +9,7 @@ async function main() {
     create: {
       slug: 'zhk-sad',
       name: 'ЖК Сад',
-      type: 'жк',
+      type: 'zhk',
     },
   })
   console.log('Organization:', org.name)
@@ -40,5 +40,5 @@ async function main() {
 }
 
 main()
-  .catch(console.error)
+  .catch((e) => { console.error(e); process.exit(1) })
   .finally(() => prisma.$disconnect())

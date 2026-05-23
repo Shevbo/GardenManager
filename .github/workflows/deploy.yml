@@ -7,6 +7,10 @@ on:
 env:
   NODE_VERSION: '20'
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
@@ -22,7 +26,7 @@ jobs:
         run: npm ci
 
       - name: Run unit tests
-        run: npx vitest run
+        run: npm test
 
       - name: Build
         run: npm run build
@@ -49,7 +53,6 @@ jobs:
   deploy:
     needs: test-and-build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -59,12 +62,22 @@ jobs:
           host: 83.69.248.175
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Pin host key to prevent MITM. Generate with: ssh-keyscan -H 83.69.248.175
+          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
           script: |
             set -e
             cd /var/www/garden-manager
             git pull origin main
-            npm ci --omit=dev
-            npx prisma migrate deploy
+
+            # Full install including devDeps needed for next build
+            npm ci
+
+            # Build before migrate — fail-fast before touching DB
             npm run build
+
+            # Apply migrations after successful build
+            npx prisma migrate deploy
+
+            # Restart app with new build
             pm2 restart garden-manager || pm2 start npm --name garden-manager -- start
             pm2 save
