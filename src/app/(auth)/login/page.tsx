@@ -17,8 +17,14 @@ export default function LoginPage() {
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    await signIn('resend', { email, callbackUrl: '/' })
-    setLoading(false)
+    setError('')
+    try {
+      await signIn('resend', { email, callbackUrl: '/' })
+    } catch {
+      setError('Не удалось отправить ссылку. Попробуйте снова.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handlePhoneSend(e: React.FormEvent) {
@@ -107,6 +113,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+            {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Отправляем...' : 'Получить ссылку на email'}
             </Button>

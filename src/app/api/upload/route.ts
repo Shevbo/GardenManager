@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getUploadUrl, buildKey } from '@/lib/storage'
+import prisma from '@/lib/prisma'
 
 const ALLOWED_TYPES = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -46,11 +47,18 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  if (size && size > MAX_SIZE_BYTES) {
-    return NextResponse.json(
-      { error: 'Файл слишком большой (максимум 10 МБ)' },
-      { status: 400 }
-    )
+  if (typeof size !== 'number' || size <= 0) {
+    return NextResponse.json({ error: 'size (bytes) required' }, { status: 400 })
+  }
+  if (size > MAX_SIZE_BYTES) {
+    return NextResponse.json({ error: 'Файл слишком большой (максимум 10 МБ)' }, { status: 400 })
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId: session.user.id, orgId },
+  })
+  if (!membership) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const key = buildKey(orgId, petitionId, filename)
