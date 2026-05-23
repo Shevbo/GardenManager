@@ -12,4 +12,5 @@ export const authConfig: NextAuthConfig = {
     },
   },
   providers: [], // провайдеры только в auth.ts (не в edge)
+  trustHost: true,
 }
