@@ -1,40 +1,23 @@
-'use client'
-import { useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { LegalDisclaimer } from '@/components/petition/LegalDisclaimer'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { auth } from '@/lib/auth'
+import prisma from '@/lib/prisma'
+import { SignForm } from './SignForm'
 
-export default function SignPage() {
-  const { id } = useParams<{ id: string }>()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [done, setDone] = useState(false)
-  const router = useRouter()
+export default async function SignPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
 
-  async function handleSign() {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch(`/api/petitions/${id}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ legalConsent: true }),
-      })
-      if (res.ok) {
-        setDone(true)
-        setTimeout(() => router.push(`/petition/${id}`), 2500)
-      } else {
-        const data = await res.json() as { error?: string }
-        setError(data.error ?? 'Ошибка подписания')
-      }
-    } catch {
-      setError('Ошибка сети. Попробуйте ещё раз.')
-    } finally {
-      setLoading(false)
-    }
+  const session = await auth()
+  if (!session?.user?.id) {
+    redirect(`/login?callbackUrl=/petition/${id}/sign`)
   }
 
-  if (done) {
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { phoneVerified: true },
+  })
+
+  if (!user?.phoneVerified) {
     return (
       <div style={{
         minHeight: '100%',
@@ -42,136 +25,60 @@ export default function SignPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 20px',
+        padding: '40px 24px',
       }}>
-        <div style={{ textAlign: 'center', maxWidth: '360px' }}>
-          {/* Animated seal */}
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          border: '1px solid var(--border)',
+          borderTop: '4px solid var(--amber)',
+          padding: '40px 36px',
+          maxWidth: '400px',
+          width: '100%',
+          textAlign: 'center',
+        }}>
           <div style={{
-            width: '80px',
-            height: '80px',
-            borderRadius: '50%',
-            background: 'var(--forest)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 24px',
-            animation: 'popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            width: '52px', height: '52px', borderRadius: '14px',
+            background: '#FEF3C7',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
           }}>
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-              <path d="M9 18L15 24L27 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#E8A020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <h2 style={{
-            fontFamily: 'Unbounded, sans-serif',
-            fontSize: '22px',
-            fontWeight: 700,
-            color: 'var(--forest)',
-            letterSpacing: '-0.02em',
-            marginBottom: '10px',
-          }}>
-            Подпись поставлена
+          <h2 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '16px', fontWeight: 700, color: 'var(--ink)', margin: '0 0 10px' }}>
+            Нужен подтверждённый телефон
           </h2>
-          <p style={{
-            fontFamily: 'Golos Text, sans-serif',
-            fontSize: '14px',
-            color: 'var(--ink-soft)',
-            lineHeight: 1.6,
-            marginBottom: '0',
-          }}>
-            Ваша подпись зарегистрирована и включена в лист подписей
+          <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '14px', color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 24px' }}>
+            Для подписания заявления необходимо подтвердить номер телефона.
+            Это нужно для верификации подписи через SMS.
           </p>
-          <style>{`@keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
+          <Link
+            href={`/profile?callbackUrl=/petition/${id}/sign`}
+            style={{
+              display: 'inline-block',
+              background: 'var(--forest)',
+              color: 'white',
+              borderRadius: '10px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              fontFamily: 'Golos Text, sans-serif',
+            }}
+          >
+            Подтвердить телефон →
+          </Link>
+          <div style={{ marginTop: '16px' }}>
+            <Link href={`/petition/${id}`} style={{ fontSize: '13px', color: 'var(--ink-soft)', textDecoration: 'none' }}>
+              ← Вернуться к заявлению
+            </Link>
+          </div>
         </div>
       </div>
     )
   }
 
-  return (
-    <div style={{
-      minHeight: '100%',
-      background: 'var(--cream)',
-      overflowY: 'auto',
-    }}>
-      {/* Nav */}
-      <div style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--white)',
-        padding: '0 24px',
-        height: '48px',
-        display: 'flex',
-        alignItems: 'center',
-      }}>
-        <Link href={`/petition/${id}`} style={{
-          color: 'var(--ink-soft)',
-          fontSize: '13px',
-          textDecoration: 'none',
-          fontFamily: 'Golos Text, sans-serif',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-        }}>
-          ← Назад к заявлению
-        </Link>
-      </div>
-
-      <div style={{ maxWidth: '520px', margin: '0 auto', padding: '48px 24px 80px' }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-          <div style={{
-            width: '52px',
-            height: '52px',
-            borderRadius: '14px',
-            background: 'var(--forest)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 20px',
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M3 17L8 12L12 16L17 10L21 14" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="3" y1="21" x2="21" y2="21" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <h1 style={{
-            fontFamily: 'Unbounded, sans-serif',
-            fontSize: '22px',
-            fontWeight: 700,
-            color: 'var(--ink)',
-            letterSpacing: '-0.02em',
-            margin: '0 0 8px',
-          }}>
-            Подписание заявления
-          </h1>
-          <p style={{
-            fontFamily: 'Golos Text, sans-serif',
-            fontSize: '14px',
-            color: 'var(--ink-soft)',
-            margin: 0,
-            lineHeight: 1.6,
-          }}>
-            Перед подписанием внимательно ознакомьтесь с условиями
-          </p>
-        </div>
-
-        {error && (
-          <div style={{
-            background: '#FEF2F2',
-            border: '1px solid #FECACA',
-            borderRadius: '10px',
-            padding: '14px 18px',
-            marginBottom: '20px',
-            color: '#991B1B',
-            fontSize: '14px',
-            fontFamily: 'Golos Text, sans-serif',
-          }}>
-            {error}
-          </div>
-        )}
-
-        <LegalDisclaimer onAccept={handleSign} loading={loading} />
-
-      </div>
-    </div>
-  )
+  return <SignForm id={id} />
 }
