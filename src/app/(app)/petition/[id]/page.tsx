@@ -2,7 +2,12 @@ import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
-import { CommentForm } from '@/components/petition/CommentForm'
+import { LifecycleStepper } from '@/components/petition/LifecycleStepper'
+import { EmojiChips } from '@/components/petition/EmojiChips'
+import { CopyLinkButton } from '@/components/petition/CopyLinkButton'
+import { CommentList } from '@/components/petition/CommentList'
+import type { CommentWithReactions } from '@/components/petition/CommentList'
+import type { PetitionStatus } from '@/lib/petition-status'
 
 const STATUS_MAP: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string }> = {
   DRAFT:       { label: 'Черновик',   textColor: '#6B6B63', bgColor: '#F0EDE6',  borderColor: '#C4BEB4' },
@@ -13,9 +18,28 @@ const STATUS_MAP: Record<string, { label: string; textColor: string; bgColor: st
   EXPORTED:    { label: 'Готово',     textColor: '#145C43', bgColor: '#D1FAE5',  borderColor: '#10B981' },
 }
 
-function initials(name: string | null, email: string | null): string {
-  if (name) return name.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()
-  return (email ?? '?').slice(0, 2).toUpperCase()
+function groupPetitionReactions(
+  rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
+  currentUserId?: string
+) {
+  const map = new Map<string, { emoji: string; count: number; hasMyReaction: boolean; users: string[] }>()
+  for (const r of rawReactions) {
+    const existing = map.get(r.emoji)
+    const userName = r.user.name ?? r.userId
+    if (existing) {
+      existing.count++
+      existing.users.push(userName)
+      if (r.userId === currentUserId) existing.hasMyReaction = true
+    } else {
+      map.set(r.emoji, {
+        emoji: r.emoji,
+        count: 1,
+        hasMyReaction: r.userId === currentUserId,
+        users: [userName],
+      })
+    }
+  }
+  return Array.from(map.values())
 }
 
 export default async function PetitionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,38 +49,64 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
   const petition = await prisma.petition.findUnique({
     where: { id },
     include: {
-      org: { select: { name: true }, },
+      org: { select: { name: true } },
       materials: true,
+      createdByUser: { select: { name: true, phone: true } },
       comments: {
-        include: { user: { select: { name: true, email: true } } },
+        include: {
+          user: { select: { name: true, email: true } },
+          reactions: { include: { user: { select: { name: true } } } },
+        },
         orderBy: { createdAt: 'asc' },
       },
+      reactions: { include: { user: { select: { name: true } } } },
       _count: { select: { signatures: true } },
     },
   })
 
   if (!petition) notFound()
 
-  const userSignature = session?.user
+  // isPublic guard
+  if (!petition.isPublic) {
+    const isMember = session?.user
+      ? await prisma.membership.findFirst({
+          where: { userId: session.user.id, orgId: petition.orgId },
+        })
+      : null
+    if (!isMember) notFound()
+  }
+
+  const currentUserId = session?.user?.id
+
+  const userSignature = currentUserId
     ? await prisma.petitionSignature.findUnique({
-        where: { petitionId_userId: { petitionId: id, userId: session.user.id } },
+        where: { petitionId_userId: { petitionId: id, userId: currentUserId } },
       })
     : null
 
-  const canComment = petition.status === 'DISCUSSION'
-  const canSign = petition.status === 'SIGNING' && !userSignature && !!session?.user
+  const isCollecting = ['SIGNING', 'CLOSED', 'EXPORTED'].includes(petition.status)
+  const canSign = petition.status === 'SIGNING' && !userSignature && !!currentUserId
   const statusInfo = STATUS_MAP[petition.status] ?? STATUS_MAP.DRAFT
+
   const showText =
-    petition.status === 'SIGNING' || petition.status === 'CLOSED' || petition.status === 'EXPORTED'
+    ['SIGNING', 'CLOSED', 'EXPORTED'].includes(petition.status)
       ? (petition.finalText ?? petition.draftText)
       : petition.draftText
 
-  const isCollecting = petition.status === 'SIGNING' || petition.status === 'CLOSED' || petition.status === 'EXPORTED'
+  const uniqueCommenters = new Set(petition.comments.map(c => c.userId)).size
+  const deadlineDate = petition.signingDeadline ?? petition.discussionDeadline
+  const petitionReactions = groupPetitionReactions(
+    petition.reactions.map(r => ({ emoji: r.emoji, userId: r.userId, user: { name: r.user.name } })),
+    currentUserId
+  )
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const publicUrl = `${appUrl}/petition/${id}`
 
   return (
     <div style={{ minHeight: '100%', background: 'var(--cream)', overflowY: 'auto' }}>
 
-      {/* Navigation bar */}
+      {/* Topbar */}
       <div style={{
         borderBottom: '1px solid var(--border)',
         background: 'var(--white)',
@@ -70,111 +120,86 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
         zIndex: 10,
       }}>
         <Link href="/admin/petitions" style={{
-          color: 'var(--ink-soft)',
-          fontSize: '13px',
-          textDecoration: 'none',
-          fontFamily: 'Golos Text, sans-serif',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-          transition: 'color 0.15s',
+          color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none',
+          fontFamily: 'Golos Text, sans-serif', display: 'inline-flex', alignItems: 'center', gap: '4px',
         }}>
           ← Заявления
         </Link>
-        <span style={{ color: 'var(--border)', fontSize: '13px' }}>/</span>
-        <span style={{ color: 'var(--ink-soft)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
-          {petition.title}
-        </span>
       </div>
 
-      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '40px 24px 80px' }}>
+      {/* Lifecycle stepper */}
+      <LifecycleStepper status={petition.status as PetitionStatus} />
 
-        {/* ── Title block ────────────────────────────────────────── */}
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '14px' }}>
-            <h1 style={{
-              fontFamily: 'Unbounded, sans-serif',
-              fontSize: 'clamp(20px, 3vw, 30px)',
-              fontWeight: 700,
-              lineHeight: 1.2,
-              letterSpacing: '-0.02em',
-              color: 'var(--ink)',
-              margin: 0,
-              flex: 1,
-            }}>
-              {petition.title}
-            </h1>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '5px 11px',
-              borderRadius: '5px',
-              border: `2px solid ${statusInfo.borderColor}`,
-              background: statusInfo.bgColor,
-              color: statusInfo.textColor,
-              fontSize: '10px',
-              fontFamily: 'Unbounded, sans-serif',
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              marginTop: '4px',
-            }}>
-              {statusInfo.label}
-            </span>
-          </div>
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '32px 24px 80px' }}>
 
-          {(petition.discussionDeadline || petition.signingDeadline) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-              {petition.discussionDeadline && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  color: 'var(--ink-soft)', fontSize: '12px', fontFamily: 'Golos Text, sans-serif',
-                }}>
-                  <span style={{ opacity: 0.6 }}>Обсуждение до</span>{' '}
-                  <strong style={{ color: 'var(--ink-mid)', fontWeight: 600 }}>
-                    {new Date(petition.discussionDeadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-                  </strong>
-                </span>
-              )}
-              {petition.signingDeadline && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  color: 'var(--ink-soft)', fontSize: '12px', fontFamily: 'Golos Text, sans-serif',
-                }}>
-                  <span style={{ opacity: 0.6 }}>Подписание до</span>{' '}
-                  <strong style={{ color: 'var(--ink-mid)', fontWeight: 600 }}>
-                    {new Date(petition.signingDeadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-                  </strong>
-                </span>
-              )}
-            </div>
-          )}
+        {/* Title */}
+        <h1 style={{
+          fontFamily: 'Unbounded, sans-serif',
+          fontSize: 'clamp(18px, 3vw, 26px)',
+          fontWeight: 700,
+          lineHeight: 1.2,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink)',
+          margin: '0 0 14px',
+        }}>
+          {petition.title}
+        </h1>
+
+        {/* Status bar */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '10px',
+          marginBottom: '24px',
+        }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '4px 10px',
+            borderRadius: '4px',
+            border: `1.5px solid ${statusInfo.borderColor}`,
+            background: statusInfo.bgColor,
+            color: statusInfo.textColor,
+            fontSize: '9px',
+            fontFamily: 'Unbounded, sans-serif',
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}>
+            {statusInfo.label}
+          </span>
+          <span style={{ fontSize: '12px', color: 'var(--ink-soft)', fontFamily: 'Golos Text, sans-serif' }}>
+            💬 {petition.comments.length}
+            {' · '}
+            👥 {uniqueCommenters}
+            {deadlineDate && (
+              <> · до {new Date(deadlineDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</>
+            )}
+          </span>
         </div>
 
-        {/* ── Signature progress meter ────────────────────────────── */}
+        {/* Signature counter */}
         {isCollecting && (
           <div style={{
             background: 'var(--forest)',
-            borderRadius: '16px',
-            padding: '28px 32px',
-            marginBottom: '24px',
+            borderRadius: '12px',
+            padding: '24px 28px',
+            marginBottom: '20px',
             position: 'relative',
             overflow: 'hidden',
           }}>
-            {/* Decorative ring */}
             <div style={{
               position: 'absolute', top: '-40px', right: '-40px',
-              width: '160px', height: '160px',
+              width: '140px', height: '140px',
               borderRadius: '50%',
-              border: '24px solid rgba(255,255,255,0.05)',
+              border: '22px solid rgba(255,255,255,0.05)',
               pointerEvents: 'none',
             }} />
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', marginBottom: '14px' }}>
               <span style={{
                 fontFamily: 'Unbounded, sans-serif',
-                fontSize: 'clamp(40px, 8vw, 64px)',
+                fontSize: 'clamp(36px, 7vw, 56px)',
                 fontWeight: 900,
                 lineHeight: 1,
                 letterSpacing: '-0.03em',
@@ -184,190 +209,136 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
               </span>
               <span style={{
                 fontFamily: 'Golos Text, sans-serif',
-                fontSize: '15px',
+                fontSize: '14px',
                 color: 'rgba(255,255,255,0.65)',
-                paddingBottom: '8px',
+                paddingBottom: '7px',
               }}>
-                {petition._count.signatures === 1 ? 'подпись собрана' :
-                 petition._count.signatures < 5 ? 'подписи собрано' : 'подписей собрано'}
+                {petition._count.signatures === 1 ? 'подпись' :
+                 petition._count.signatures < 5 ? 'подписи' : 'подписей'}
               </span>
             </div>
-            <div style={{ height: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{ height: '5px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
                 width: `${Math.min(100, petition._count.signatures)}%`,
                 background: 'var(--amber)',
                 borderRadius: '3px',
-                transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
               }} />
             </div>
           </div>
         )}
 
-        {/* ── Document card ───────────────────────────────────────── */}
+        {/* Document card */}
         <div style={{
           background: 'var(--white)',
-          borderRadius: '14px',
+          borderRadius: '6px',
           border: '1px solid var(--border)',
           borderLeft: '4px solid var(--forest)',
           overflow: 'hidden',
-          marginBottom: '20px',
-          boxShadow: '0 1px 4px rgba(10,61,46,0.06)',
+          marginBottom: '16px',
         }}>
+          {/* Card header */}
           <div style={{
-            padding: '10px 24px',
+            padding: '10px 20px',
             borderBottom: '1px solid var(--border)',
             background: 'var(--cream)',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
-              <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-              <line x1="4.5" y1="4.5" x2="9.5" y2="4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <line x1="4.5" y1="6.5" x2="9.5" y2="6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <line x1="4.5" y1="8.5" x2="7.5" y2="8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
             <span style={{
               fontFamily: 'Unbounded, sans-serif',
-              fontSize: '10px',
+              fontSize: '9px',
               fontWeight: 600,
               letterSpacing: '0.09em',
               textTransform: 'uppercase',
               color: 'var(--ink-soft)',
+              flex: 1,
             }}>
-              Текст заявления
+              📄 Текст заявления
             </span>
+            <a
+              href={`/api/petitions/${id}/export`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                border: '1px solid var(--border)',
+                background: 'var(--white)',
+                color: 'var(--ink)',
+                fontSize: '11px',
+                fontFamily: 'Golos Text, sans-serif',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
+            >
+              ↓ Просмотр PDF
+            </a>
+            <CopyLinkButton url={publicUrl} />
           </div>
-          {/* ── Official header (шапка) ─────────────────────────── */}
-          {(petition.recipient || petition.org.name) && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '0',
-              borderBottom: '1px solid var(--border)',
-            }}>
-              {/* Кому */}
-              {petition.recipient && (
-                <div style={{
-                  padding: '20px 28px',
-                  borderRight: '1px solid var(--border)',
-                }}>
-                  <p style={{
-                    fontFamily: 'Unbounded, sans-serif',
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ink-soft)',
-                    margin: '0 0 8px',
-                  }}>
-                    Кому
-                  </p>
-                  <p style={{
-                    fontFamily: 'Golos Text, sans-serif',
-                    fontSize: '14px',
-                    lineHeight: '1.65',
-                    color: 'var(--ink)',
-                    margin: 0,
-                    whiteSpace: 'pre-wrap',
-                  }}>
-                    {petition.recipient}
-                  </p>
-                </div>
-              )}
-              {/* От кого */}
-              <div style={{
-                padding: '20px 28px',
-                gridColumn: petition.recipient ? undefined : '1 / -1',
-              }}>
-                <p style={{
-                  fontFamily: 'Unbounded, sans-serif',
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--ink-soft)',
-                  margin: '0 0 8px',
-                }}>
-                  От кого
-                </p>
-                <p style={{
-                  fontFamily: 'Golos Text, sans-serif',
-                  fontSize: '14px',
-                  lineHeight: '1.65',
-                  color: 'var(--ink)',
-                  margin: '0 0 8px',
-                }}>
-                  {petition.org.name}
-                </p>
-                <p style={{
-                  fontFamily: 'Golos Text, sans-serif',
-                  fontSize: '13px',
-                  color: 'var(--ink-soft)',
-                  margin: 0,
-                }}>
-                  {petition._count.signatures > 0 && (
-                    <>{petition._count.signatures} {
-                      petition._count.signatures === 1 ? 'подписант' :
-                      petition._count.signatures < 5 ? 'подписанта' : 'подписантов'
-                    }</>
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
 
+          {/* Grid: Кому / От кого / Инициатор */}
           <div style={{
-            padding: '28px 28px 32px',
-            fontFamily: 'Golos Text, sans-serif',
-            fontSize: '15px',
-            lineHeight: '1.8',
-            color: 'var(--ink)',
-            whiteSpace: 'pre-wrap',
+            display: 'grid',
+            gridTemplateColumns: petition.recipient ? '1fr 1fr 1fr' : '1fr 1fr',
+            borderBottom: '1px solid var(--border)',
           }}>
+            {petition.recipient && (
+              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)' }}>
+                <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 6px' }}>Кому</p>
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', lineHeight: '1.6', color: 'var(--ink)', margin: 0, whiteSpace: 'pre-wrap' }}>{petition.recipient}</p>
+              </div>
+            )}
+            <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)' }}>
+              <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 6px' }}>От кого</p>
+              <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: 0 }}>{petition.org.name}</p>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 6px' }}>Инициатор</p>
+              <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: '0 0 2px' }}>{petition.createdByUser.name ?? '—'}</p>
+              {petition.createdByUser.phone && (
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Text body */}
+          <div style={{ padding: '24px 24px 20px', fontFamily: 'Golos Text, sans-serif', fontSize: '15px', lineHeight: '1.8', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>
             {showText}
+          </div>
+
+          {/* Emoji reactions on document */}
+          <div style={{ padding: '0 24px 18px' }}>
+            <EmojiChips
+              entityType="petition"
+              entityId={id}
+              petitionId={id}
+              reactions={petitionReactions}
+              currentUserId={currentUserId}
+            />
           </div>
         </div>
 
-        {/* ── Materials ───────────────────────────────────────────── */}
+        {/* Materials */}
         {petition.materials.length > 0 && (
           <div style={{
             background: 'var(--white)',
-            borderRadius: '12px',
+            borderRadius: '6px',
             border: '1px solid var(--border)',
-            padding: '18px 24px',
-            marginBottom: '20px',
+            padding: '16px 20px',
+            marginBottom: '16px',
           }}>
-            <p style={{
-              fontFamily: 'Unbounded, sans-serif',
-              fontSize: '10px',
-              fontWeight: 600,
-              letterSpacing: '0.09em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-soft)',
-              margin: '0 0 12px',
-            }}>
-              Материалы
-            </p>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '9px', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 10px' }}>Материалы</p>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '7px' }}>
               {petition.materials.map(m => (
                 <li key={m.id}>
-                  <a
-                    href={`/api/storage/${encodeURIComponent(m.url)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: 'var(--forest)',
-                      textDecoration: 'none',
-                      fontSize: '14px',
-                      fontFamily: 'Golos Text, sans-serif',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                    }}
-                  >
-                    <span style={{ fontSize: '16px' }}>📎</span>
+                  <a href={`/api/storage/${encodeURIComponent(m.url)}`} target="_blank" rel="noopener noreferrer"
+                     style={{ color: 'var(--forest)', textDecoration: 'none', fontSize: '14px', fontFamily: 'Golos Text, sans-serif', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📎</span>
                     <span style={{ borderBottom: '1px dashed rgba(10,61,46,0.3)' }}>{m.name}</span>
                   </a>
                 </li>
@@ -376,212 +347,37 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
           </div>
         )}
 
-        {/* ── Sign CTA ────────────────────────────────────────────── */}
+        {/* Sign CTA */}
         {canSign && (
-          <div style={{
-            background: 'var(--forest)',
-            borderRadius: '16px',
-            padding: '28px 32px',
-            marginBottom: '20px',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute', bottom: '-30px', right: '-30px',
-              width: '120px', height: '120px',
-              borderRadius: '50%',
-              border: '20px solid rgba(255,255,255,0.06)',
-              pointerEvents: 'none',
-            }} />
-            <h3 style={{
-              fontFamily: 'Unbounded, sans-serif',
-              fontSize: '16px',
-              fontWeight: 700,
-              color: 'var(--white)',
-              margin: '0 0 8px',
-            }}>
-              Поддержите это заявление
-            </h3>
-            <p style={{
-              fontFamily: 'Golos Text, sans-serif',
-              fontSize: '14px',
-              color: 'rgba(255,255,255,0.65)',
-              margin: '0 0 22px',
-              lineHeight: 1.6,
-            }}>
-              Ваша подпись юридически значима и войдёт в официальный лист подписей
-            </p>
-            <Link href={`/petition/${id}/sign`} style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'var(--amber)',
-              color: 'var(--ink)',
-              padding: '13px 24px',
-              borderRadius: '10px',
-              fontFamily: 'Unbounded, sans-serif',
-              fontSize: '13px',
-              fontWeight: 700,
-              textDecoration: 'none',
-              letterSpacing: '-0.01em',
-            }}>
+          <div style={{ background: 'var(--forest)', borderRadius: '6px', padding: '24px 28px', marginBottom: '16px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', bottom: '-30px', right: '-30px', width: '110px', height: '110px', borderRadius: '50%', border: '18px solid rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+            <h3 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '15px', fontWeight: 700, color: 'var(--white)', margin: '0 0 8px' }}>Поддержите это заявление</h3>
+            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'rgba(255,255,255,0.65)', margin: '0 0 18px', lineHeight: 1.6 }}>Ваша подпись юридически значима</p>
+            <Link href={`/petition/${id}/sign`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--amber)', color: 'var(--ink)', padding: '11px 20px', borderRadius: '6px', fontFamily: 'Unbounded, sans-serif', fontSize: '12px', fontWeight: 700, textDecoration: 'none', letterSpacing: '-0.01em' }}>
               Поставить подпись →
             </Link>
           </div>
         )}
 
-        {/* ── Already signed ──────────────────────────────────────── */}
+        {/* Already signed */}
         {userSignature && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            background: '#EDFAF3',
-            border: '1px solid #7ECFA4',
-            borderRadius: '12px',
-            padding: '16px 20px',
-            marginBottom: '20px',
-          }}>
-            <div style={{
-              width: '38px', height: '38px',
-              borderRadius: '50%',
-              background: 'var(--forest)',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-              flexShrink: 0,
-              fontWeight: 700,
-            }}>
-              ✓
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#EDFAF3', border: '1px solid #7ECFA4', borderRadius: '6px', padding: '14px 18px', marginBottom: '16px' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--forest)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0, fontWeight: 700 }}>✓</div>
             <div>
-              <p style={{
-                margin: 0,
-                fontFamily: 'Unbounded, sans-serif',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: 'var(--forest)',
-                letterSpacing: '-0.01em',
-              }}>
-                Вы подписали это заявление
-              </p>
-              <p style={{
-                margin: '3px 0 0',
-                fontSize: '12px',
-                fontFamily: 'Golos Text, sans-serif',
-                color: '#3D8B65',
-              }}>
+              <p style={{ margin: 0, fontFamily: 'Unbounded, sans-serif', fontSize: '11px', fontWeight: 700, color: 'var(--forest)', letterSpacing: '-0.01em' }}>Вы подписали это заявление</p>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', fontFamily: 'Golos Text, sans-serif', color: '#3D8B65' }}>
                 {userSignature.signedAt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Discussion ──────────────────────────────────────────── */}
-        {canComment && (
-          <div style={{ marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <h2 style={{
-                fontFamily: 'Unbounded, sans-serif',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: 'var(--ink)',
-                margin: 0,
-              }}>
-                Обсуждение
-              </h2>
-              {petition.comments.length > 0 && (
-                <span style={{
-                  background: 'var(--cream-dark)',
-                  color: 'var(--ink-soft)',
-                  fontSize: '11px',
-                  fontFamily: 'Golos Text, sans-serif',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '20px',
-                }}>
-                  {petition.comments.length}
-                </span>
-              )}
-            </div>
-
-            {petition.comments.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                {petition.comments.map(c => (
-                  <div key={c.id} style={{
-                    background: 'var(--white)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border)',
-                    padding: '16px 20px',
-                    display: 'flex',
-                    gap: '12px',
-                  }}>
-                    <div style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      background: 'var(--forest)',
-                      color: 'var(--white)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '11px',
-                      fontFamily: 'Unbounded, sans-serif',
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      letterSpacing: '0',
-                    }}>
-                      {initials(c.user.name, c.user.email)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <span style={{
-                          fontFamily: 'Golos Text, sans-serif',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          color: 'var(--ink)',
-                        }}>
-                          {c.user.name ?? c.user.email}
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--ink-soft)', fontFamily: 'Golos Text, sans-serif' }}>
-                          {new Date(c.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                        </span>
-                      </div>
-                      <p style={{
-                        margin: 0,
-                        fontSize: '14px',
-                        fontFamily: 'Golos Text, sans-serif',
-                        color: 'var(--ink-mid)',
-                        lineHeight: '1.65',
-                      }}>
-                        {c.text}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {session?.user ? (
-              <CommentForm petitionId={id} />
-            ) : (
-              <div style={{
-                background: 'var(--cream-dark)',
-                borderRadius: '10px',
-                padding: '16px 20px',
-                textAlign: 'center',
-                fontSize: '13px',
-                color: 'var(--ink-soft)',
-                fontFamily: 'Golos Text, sans-serif',
-              }}>
-                <Link href="/login" style={{ color: 'var(--forest)', textDecoration: 'none', fontWeight: 600 }}>Войдите</Link>,
-                {' '}чтобы оставить комментарий
-              </div>
-            )}
-          </div>
-        )}
+        {/* Comment feed — always shown */}
+        <CommentList
+          petitionId={id}
+          comments={petition.comments as CommentWithReactions[]}
+          currentUserId={currentUserId}
+        />
 
       </div>
     </div>
