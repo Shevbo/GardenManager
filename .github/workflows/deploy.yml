@@ -75,7 +75,7 @@ jobs:
             # Full install including devDeps needed for next build
             npm ci
             npx prisma generate
-            npm run build
+            NEXT_TELEMETRY_DISABLED=1 DATABASE_URL=postgresql://build:build@localhost/build npm run build
 
             # Migrations + PM2 restart are handled by provision-garden.sh on smain
             # (secrets are managed by keymaster, not stored on hoster)
