@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/lib/utils'
 import { Users, FileText, Pen, CheckCircle2, ChevronRight, Plus, Clock } from 'lucide-react'
 import type { PetitionStatus } from '@/lib/petition-status'
+import { OnboardingBanner } from '@/components/OnboardingBanner'
 
 function petitionHref(id: string, status: PetitionStatus): string {
   switch (status) {
@@ -27,6 +28,11 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect('/login')
 
   const userId = session.user.id
+
+  const userProfile = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, phoneVerified: true, address: true },
+  })
 
   const membership = await prisma.membership.findFirst({
     where: { userId },
@@ -76,6 +82,15 @@ export default async function DashboardPage() {
       <Topbar title="Главная" subtitle={subtitle} />
 
       <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0">
+
+        {/* Onboarding banner */}
+        {userProfile && (
+          <OnboardingBanner
+            hasName={!!userProfile.name}
+            hasPhone={!!userProfile.phoneVerified}
+            hasAddress={!!userProfile.address}
+          />
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 shrink-0">
