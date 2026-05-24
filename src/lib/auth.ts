@@ -50,6 +50,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return { id: user.id, email: user.email ?? undefined, name: user.name ?? undefined }
       },
     }),
+    Credentials({
+      id: 'email-otp',
+      name: 'Email OTP',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        otp:   { label: 'Code',  type: 'text'  },
+      },
+      async authorize(credentials) {
+        const email = (credentials?.email as string | undefined)?.trim().toLowerCase()
+        const otp   = credentials?.otp as string | undefined
+        if (!email || !otp) return null
+
+        const token = await prisma.verificationToken.findFirst({
+          where: { identifier: email, token: otp, expires: { gt: new Date() } },
+        })
+        if (!token) return null
+
+        await prisma.verificationToken.deleteMany({ where: { identifier: email } })
+
+        const user = await prisma.user.upsert({
+          where:  { email },
+          update: { emailVerified: new Date() },
+          create: { email, emailVerified: new Date() },
+          select: { id: true, email: true, name: true },
+        })
+
+        return { id: user.id, email: user.email ?? undefined, name: user.name ?? undefined }
+      },
+    }),
   ],
   callbacks: {
     ...authConfig.callbacks,
