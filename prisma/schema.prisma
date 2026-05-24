@@ -78,6 +78,7 @@ model User {
   password      String?
   emailVerified DateTime?
   phoneVerified DateTime?
+  address       String?   @db.Text
   createdAt     DateTime  @default(now())
 
   accounts         Account[]
