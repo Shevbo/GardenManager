@@ -115,15 +115,15 @@ export function Sidebar() {
         })}
 
         {/* User */}
-        <div className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 cursor-pointer transition-colors">
-          <div className="w-7 h-7 rounded-full bg-forest-light flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-bold">ИВ</span>
+        <Link href="/profile" className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 transition-colors">
+          <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <span className="text-white text-xs font-bold">П</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-medium truncate">Иван Владимиров</p>
-            <p className="text-white/40 text-[10px] truncate">кв. 47 · Собственник</p>
+            <p className="text-white text-xs font-medium truncate">Профиль</p>
+            <p className="text-white/40 text-[10px] truncate">Настройки аккаунта</p>
           </div>
-        </div>
+        </Link>
       </div>
     </aside>
   );
