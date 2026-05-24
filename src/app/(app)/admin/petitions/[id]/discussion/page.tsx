@@ -4,9 +4,38 @@ import prisma from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { canTransition } from '@/lib/petition-status'
+import Link from 'next/link'
+import { LifecycleStrip } from '@/components/petition/LifecycleStrip'
+import { EmojiChips } from '@/components/petition/EmojiChips'
+import { CommentList } from '@/components/petition/CommentList'
+import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+
+function groupPetitionReactions(
+  rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
+  currentUserId?: string
+) {
+  const map = new Map<string, { emoji: string; count: number; hasMyReaction: boolean; users: string[] }>()
+  for (const r of rawReactions) {
+    const existing = map.get(r.emoji)
+    const userName = r.user.name ?? r.userId
+    if (existing) {
+      existing.count++
+      existing.users.push(userName)
+      if (r.userId === currentUserId) existing.hasMyReaction = true
+    } else {
+      map.set(r.emoji, {
+        emoji: r.emoji,
+        count: 1,
+        hasMyReaction: r.userId === currentUserId,
+        users: [userName],
+      })
+    }
+  }
+  return Array.from(map.values())
+}
 
 export default async function DiscussionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -16,10 +45,18 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
   const petition = await prisma.petition.findUnique({
     where: { id },
     include: {
+      org: { select: { name: true } },
+      createdByUser: { select: { name: true, phone: true } },
+      materials: true,
       comments: {
-        include: { user: { select: { name: true, email: true, phone: true } } },
+        include: {
+          user: { select: { name: true, email: true } },
+          reactions: { include: { user: { select: { name: true } } } },
+        },
         orderBy: { createdAt: 'asc' },
       },
+      reactions: { include: { user: { select: { name: true } } } },
+      _count: { select: { signatures: true } },
     },
   })
   if (!petition) notFound()
@@ -49,43 +86,77 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
     redirect(`/admin/petitions/${id}/revision`)
   }
 
-  const canStartRevision = petition.status === 'DISCUSSION'
-
   return (
-    <div className="max-w-3xl mx-auto px-5 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{petition.title} — Обсуждение</h1>
-        {canStartRevision && (
-          <form action={startRevision}>
-            <Button type="submit" disabled={petition.comments.length === 0}>
-              Запустить AI-ревизию →
-            </Button>
-          </form>
-        )}
+    <div style={{ minHeight: '100%', background: 'var(--cream)' }}>
+
+      {/* Topbar */}
+      <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--white)', padding: '0 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
 
-      <p className="text-sm text-gray-500">{petition.comments.length} комментариев</p>
+      <LifecycleStrip
+        petitionId={id}
+        currentStatus={petition.status as PetitionStatus}
+        isPublic={petition.isPublic}
+      />
 
-      <div className="space-y-4">
-        {petition.comments.map(c => (
-          <div key={c.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-medium text-sm">{c.user.name ?? c.user.email ?? c.user.phone}</span>
-              <span className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString('ru-RU')}</span>
-            </div>
-            <p className="text-sm text-gray-700">{c.text}</p>
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
+
+        <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
+          {petition.title}
+        </h1>
+
+        {/* Admin action block */}
+        <div style={{ background: '#FEF3C7', border: '1px solid #D97706', borderRadius: '6px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div>
+            <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '10px', fontWeight: 700, color: '#92400E', letterSpacing: '0.06em', margin: '0 0 4px' }}>ЭТАП: ОБСУЖДЕНИЕ</p>
+            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#92400E', margin: 0 }}>Соберите обратную связь участников перед передачей в AI</p>
           </div>
-        ))}
-        {petition.comments.length === 0 && (
-          <p className="text-gray-400 text-center py-8">Комментариев пока нет</p>
-        )}
-      </div>
+          <form action={startRevision}>
+            <Button type="submit" variant="primary" size="sm">Запустить AI-ревизию →</Button>
+          </form>
+        </div>
 
-      <div className="pt-4 border-t border-gray-100">
-        <p className="text-sm text-gray-500 mb-2">Ссылка для собственников:</p>
-        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-          {`${process.env.NEXT_PUBLIC_URL ?? 'https://garden.shectory.ru'}/petition/${id}`}
-        </code>
+        {/* Document card */}
+        <div style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--forest)', overflow: 'hidden', marginBottom: '16px' }}>
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--cream)', display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '9px', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>📄 Текст заявления</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: petition.recipient ? '1fr 1fr 1fr' : '1fr 1fr', borderBottom: '1px solid var(--border)' }}>
+            {petition.recipient && (
+              <div style={{ padding: '14px 18px', borderRight: '1px solid var(--border)' }}>
+                <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Кому</p>
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: 0, whiteSpace: 'pre-wrap' }}>{petition.recipient}</p>
+              </div>
+            )}
+            <div style={{ padding: '14px 18px', borderRight: '1px solid var(--border)' }}>
+              <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>От кого</p>
+              <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: 0 }}>{petition.org.name}</p>
+            </div>
+            <div style={{ padding: '14px 18px' }}>
+              <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Инициатор</p>
+              <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: '0 0 2px' }}>{petition.createdByUser.name ?? '—'}</p>
+              {petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
+            </div>
+          </div>
+          <div style={{ padding: '22px 22px 18px', fontFamily: 'Golos Text, sans-serif', fontSize: '15px', lineHeight: '1.8', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{petition.draftText}</div>
+          <div style={{ padding: '0 22px 16px' }}>
+            <EmojiChips
+              entityType="petition"
+              entityId={id}
+              petitionId={id}
+              reactions={groupPetitionReactions(petition.reactions, session?.user?.id)}
+              currentUserId={session?.user?.id}
+            />
+          </div>
+        </div>
+
+        <CommentList
+          petitionId={id}
+          comments={petition.comments as CommentWithReactions[]}
+          currentUserId={session?.user?.id}
+        />
+
       </div>
     </div>
   )
