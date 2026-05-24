@@ -43,13 +43,6 @@ export async function POST(
   const petition = await prisma.petition.findUnique({ where: { id } })
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (petition.status !== 'DISCUSSION') {
-    return NextResponse.json(
-      { error: 'Comments only allowed during DISCUSSION phase' },
-      { status: 400 }
-    )
-  }
-
   // Verify membership
   const membership = await prisma.membership.findFirst({
     where: { userId: session.user.id, orgId: petition.orgId },
