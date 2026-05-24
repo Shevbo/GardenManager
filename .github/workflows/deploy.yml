@@ -66,8 +66,6 @@ jobs:
           host: 83.69.248.175
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # Pin host key to prevent MITM. Generate with: ssh-keyscan -H 83.69.248.175
-          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
           script: |
             set -e
             cd /var/www/garden-manager
