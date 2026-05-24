@@ -3,10 +3,38 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { ProgressBar } from '@/components/ui/ProgressBar'
 import { sendNotSignedNotification } from '@/lib/email'
 import { canTransition } from '@/lib/petition-status'
+import Link from 'next/link'
+import { LifecycleStrip } from '@/components/petition/LifecycleStrip'
+import { EmojiChips } from '@/components/petition/EmojiChips'
+import { CommentList } from '@/components/petition/CommentList'
+import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
+
+function groupPetitionReactions(
+  rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
+  currentUserId?: string
+) {
+  const map = new Map<string, { emoji: string; count: number; hasMyReaction: boolean; users: string[] }>()
+  for (const r of rawReactions) {
+    const existing = map.get(r.emoji)
+    const userName = r.user.name ?? r.userId
+    if (existing) {
+      existing.count++
+      existing.users.push(userName)
+      if (r.userId === currentUserId) existing.hasMyReaction = true
+    } else {
+      map.set(r.emoji, {
+        emoji: r.emoji,
+        count: 1,
+        hasMyReaction: r.userId === currentUserId,
+        users: [userName],
+      })
+    }
+  }
+  return Array.from(map.values())
+}
 
 export default async function SigningPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -16,10 +44,6 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
   const petition = await prisma.petition.findUnique({
     where: { id },
     include: {
-      signatures: {
-        include: { user: { select: { name: true, email: true, phone: true } } },
-        orderBy: { signedAt: 'desc' },
-      },
       org: {
         include: {
           memberships: {
@@ -27,6 +51,21 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
           },
         },
       },
+      createdByUser: { select: { name: true, phone: true } },
+      materials: true,
+      signatures: {
+        include: { user: { select: { name: true, email: true, phone: true } } },
+        orderBy: { signedAt: 'desc' },
+      },
+      comments: {
+        include: {
+          user: { select: { name: true, email: true } },
+          reactions: { include: { user: { select: { name: true } } } },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+      reactions: { include: { user: { select: { name: true } } } },
+      _count: { select: { signatures: true } },
     },
   })
   if (!petition) notFound()
@@ -60,38 +99,97 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-5 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{petition.title} — Подписание</h1>
-        {petition.status === 'SIGNING' && (
-          <form action={closePetition}>
-            <Button type="submit" variant="secondary">
-              Закрыть сбор подписей
-            </Button>
-          </form>
-        )}
+    <div style={{ minHeight: '100%', background: 'var(--cream)' }}>
+
+      {/* Topbar */}
+      <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--white)', padding: '0 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
 
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Подписало</span>
-          <span className="font-semibold">{signedCount} из {totalMembers}</span>
+      <LifecycleStrip
+        petitionId={id}
+        currentStatus={petition.status as PetitionStatus}
+        isPublic={petition.isPublic}
+      />
+
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
+
+        <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
+          {petition.title}
+        </h1>
+
+        {/* Admin action block — Signing stage */}
+        <div style={{ background: '#FEF3C7', border: '1px solid #D97706', borderRadius: '6px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div>
+            <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '10px', fontWeight: 700, color: '#92400E', letterSpacing: '0.06em', margin: '0 0 4px' }}>ЭТАП: ПОДПИСАНИЕ</p>
+            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#92400E', margin: 0 }}>
+              {signedCount} из {totalMembers} участников подписали
+            </p>
+          </div>
+          {petition.status === 'SIGNING' && (
+            <form action={closePetition}>
+              <Button type="submit" variant="primary" size="sm">Закрыть сбор подписей →</Button>
+            </form>
+          )}
         </div>
-        <ProgressBar value={signedCount} max={totalMembers > 0 ? totalMembers : 1} />
-      </div>
 
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-        <h3 className="font-medium mb-4">Подписи ({signedCount})</h3>
-        <div className="space-y-2">
-          {petition.signatures.map(s => (
-            <div key={s.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-50">
-              <span>{s.user.name ?? s.user.email ?? s.user.phone}</span>
-              <span className="text-gray-400">
-                {s.verifiedVia.toUpperCase()} · {new Date(s.signedAt).toLocaleString('ru-RU')}
-              </span>
+        {/* Document card */}
+        <div style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--forest)', overflow: 'hidden', marginBottom: '16px' }}>
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--cream)', display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '9px', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>📄 Текст заявления</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: petition.recipient ? '1fr 1fr 1fr' : '1fr 1fr', borderBottom: '1px solid var(--border)' }}>
+            {petition.recipient && (
+              <div style={{ padding: '14px 18px', borderRight: '1px solid var(--border)' }}>
+                <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Кому</p>
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: 0, whiteSpace: 'pre-wrap' }}>{petition.recipient}</p>
+              </div>
+            )}
+            <div style={{ padding: '14px 18px', borderRight: '1px solid var(--border)' }}>
+              <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>От кого</p>
+              <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: 0 }}>{petition.org.name}</p>
             </div>
-          ))}
+            <div style={{ padding: '14px 18px' }}>
+              <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Инициатор</p>
+              <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: '0 0 2px' }}>{petition.createdByUser.name ?? '—'}</p>
+              {petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
+            </div>
+          </div>
+          <div style={{ padding: '22px 22px 18px', fontFamily: 'Golos Text, sans-serif', fontSize: '15px', lineHeight: '1.8', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{petition.finalText ?? petition.draftText}</div>
+          <div style={{ padding: '0 22px 16px' }}>
+            <EmojiChips
+              entityType="petition"
+              entityId={id}
+              petitionId={id}
+              reactions={groupPetitionReactions(petition.reactions, session?.user?.id)}
+              currentUserId={session?.user?.id}
+            />
+          </div>
         </div>
+
+        {/* Signatures list */}
+        <div style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', padding: '20px', marginBottom: '16px' }}>
+          <h3 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+            Подписи ({signedCount})
+          </h3>
+          <div>
+            {petition.signatures.map(s => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'Golos Text, sans-serif', fontSize: '13px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ color: 'var(--ink)' }}>{s.user.name ?? s.user.email ?? s.user.phone}</span>
+                <span style={{ color: 'var(--ink-soft)', fontSize: '12px' }}>
+                  {s.verifiedVia.toUpperCase()} · {new Date(s.signedAt).toLocaleString('ru-RU')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <CommentList
+          petitionId={id}
+          comments={petition.comments as CommentWithReactions[]}
+          currentUserId={session?.user?.id}
+        />
+
       </div>
     </div>
   )
