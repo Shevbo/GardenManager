@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canTransition, PetitionStatus } from '@/lib/petition-status'
+import { canTransition, canGoBack, PetitionStatus } from '@/lib/petition-status'
 
 describe('petition status machine', () => {
   it('allows DRAFT → DISCUSSION', () => {
@@ -28,5 +28,26 @@ describe('petition status machine', () => {
   })
   it('blocks same-status transition', () => {
     expect(canTransition('DRAFT', 'DRAFT')).toBe(false)
+  })
+})
+
+describe('canGoBack', () => {
+  it('DISCUSSION can go back to DRAFT', () => {
+    expect(canGoBack('DISCUSSION')).toBe('DRAFT')
+  })
+  it('AI_REVISION can go back to DISCUSSION', () => {
+    expect(canGoBack('AI_REVISION')).toBe('DISCUSSION')
+  })
+  it('SIGNING can go back to AI_REVISION', () => {
+    expect(canGoBack('SIGNING')).toBe('AI_REVISION')
+  })
+  it('DRAFT has no back', () => {
+    expect(canGoBack('DRAFT')).toBeNull()
+  })
+  it('CLOSED has no back (signatures locked)', () => {
+    expect(canGoBack('CLOSED')).toBeNull()
+  })
+  it('EXPORTED has no back', () => {
+    expect(canGoBack('EXPORTED')).toBeNull()
   })
 })

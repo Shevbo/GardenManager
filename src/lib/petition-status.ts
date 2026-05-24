@@ -11,6 +11,19 @@ const TRANSITIONS: Record<PetitionStatus, PetitionStatus[]> = {
   EXPORTED:    [],
 }
 
+const BACK_TRANSITIONS: Record<PetitionStatus, PetitionStatus | null> = {
+  DRAFT:       null,
+  DISCUSSION:  'DRAFT',
+  AI_REVISION: 'DISCUSSION',
+  SIGNING:     'AI_REVISION',
+  CLOSED:      null,
+  EXPORTED:    null,
+}
+
 export function canTransition(from: PetitionStatus, to: PetitionStatus): boolean {
   return TRANSITIONS[from].includes(to)
+}
+
+export function canGoBack(from: PetitionStatus): PetitionStatus | null {
+  return BACK_TRANSITIONS[from]
 }
