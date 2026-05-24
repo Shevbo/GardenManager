@@ -39,6 +39,7 @@ model Organization {
   buildings   Building[]
   memberships Membership[]
   petitions   Petition[]
+  inviteLinks InviteLink[]
 }
 
 model Building {
@@ -63,6 +64,7 @@ model Apartment {
 
   building    Building     @relation(fields: [buildingId], references: [id])
   memberships Membership[]
+  inviteLinks InviteLink[]
 
   @@unique([buildingId, number])
   @@index([buildingId])
@@ -224,4 +226,22 @@ model PetitionSignature {
   user     User     @relation(fields: [userId], references: [id])
 
   @@unique([petitionId, userId])
+}
+
+model InviteLink {
+  id          String    @id @default(cuid())
+  token       String    @unique @default(cuid())
+  orgId       String
+  createdBy   String
+  apartmentId String?
+  expiresAt   DateTime?
+  usedBy      String?
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id])
+  apartment Apartment?   @relation(fields: [apartmentId], references: [id])
+
+  @@index([orgId])
+  @@index([token])
 }

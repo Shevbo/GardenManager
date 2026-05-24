@@ -64,6 +64,7 @@ export default async function DashboardPage() {
   const signingPetitions = petitions.filter(p => p.status === 'SIGNING')
   const unsignedPetition = signingPetitions.find(p => !signedIds.has(p.id)) ?? null
   const recentPetitions = petitions.slice(0, 6)
+  const isAdmin = ['org_admin', 'platform_admin', 'coalition_admin'].includes(membership.role)
 
   const subtitle = [
     membership.org.name,
@@ -97,6 +98,22 @@ export default async function DashboardPage() {
             </Card>
           ))}
         </div>
+
+        {/* Admin quick links */}
+        {isAdmin && (
+          <div className="flex gap-3 shrink-0">
+            <Link href="/admin/org">
+              <Button variant="secondary" size="sm" className="gap-1.5">
+                <Users size={14} /> Организация
+              </Button>
+            </Link>
+            <Link href="/admin/petitions/new">
+              <Button variant="secondary" size="sm" className="gap-1.5">
+                <Plus size={14} /> Новое заявление
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* 2-column layout */}
         <div className="flex gap-5 flex-1 min-h-0">
