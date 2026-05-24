@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from 'next-auth'
 
-// Edge-safe config — без bcryptjs, только для middleware
+// Edge-safe config — no server-only imports, only for middleware
 export const authConfig: NextAuthConfig = {
   pages: { signIn: '/login' },
   session: { strategy: 'jwt' },
