@@ -61,6 +61,7 @@ export async function sendSigningInvite(
 }
 
 export async function sendEmailOtp(email: string, otp: string): Promise<void> {
+  const safeOtp = escapeHtml(otp)
   await getResend().emails.send({
     from: FROM(),
     to: email,
@@ -68,7 +69,7 @@ export async function sendEmailOtp(email: string, otp: string): Promise<void> {
     html: `
       <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:24px;">
         <h2 style="color:#0A3D2E;font-size:20px;margin-bottom:16px;">Код подтверждения</h2>
-        <p style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1A1A18;margin:24px 0;">${otp}</p>
+        <p style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1A1A18;margin:24px 0;">${safeOtp}</p>
         <p style="color:#6B6B63;font-size:14px;">Код действителен 10 минут.</p>
         <p style="color:#6B6B63;font-size:12px;margin-top:24px;">
           Если вы не запрашивали код — проигнорируйте это письмо.
