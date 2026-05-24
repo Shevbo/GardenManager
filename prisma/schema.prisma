@@ -151,6 +151,7 @@ model Petition {
   title              String
   draftText          String         @db.Text
   finalText          String?        @db.Text
+  recipient          String?        @db.Text
   status             PetitionStatus @default(DRAFT)
   discussionDeadline DateTime?
   signingDeadline    DateTime?

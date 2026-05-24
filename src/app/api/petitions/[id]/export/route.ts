@@ -14,6 +14,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   const petition = await prisma.petition.findUnique({
     where: { id },
     include: {
+      org: { select: { name: true } },
       signatures: {
         include: {
           user: { select: { name: true, email: true, phone: true } },
@@ -58,7 +59,8 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   const pdf = await generatePetitionPdf(
     petition.title,
     petition.finalText,
-    signaturesWithMembership
+    signaturesWithMembership,
+    { recipient: petition.recipient, orgName: petition.org.name }
   )
 
   if (canTransition(petition.status as PetitionStatus, 'EXPORTED')) {

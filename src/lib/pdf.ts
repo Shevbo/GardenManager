@@ -57,9 +57,43 @@ export function buildRegistryRows(signatures: SignatureInput[]): RegistryRow[] {
   }))
 }
 
-function PetitionPDF({ title, finalText, rows }: { title: string; finalText: string; rows: RegistryRow[] }) {
+const headerStyles = StyleSheet.create({
+  wrap:  { alignItems: 'flex-end', marginBottom: 24 },
+  block: { width: '45%' },
+  row:   { marginBottom: 12 },
+  label: { fontSize: 8, color: '#888888', marginBottom: 3 },
+  value: { fontSize: 11, lineHeight: 1.5 },
+  sub:   { fontSize: 9, color: '#666666', marginTop: 2 },
+})
+
+function PetitionPDF({ title, finalText, rows, recipient, orgName, signaturesCount }: {
+  title: string; finalText: string; rows: RegistryRow[]
+  recipient?: string | null; orgName?: string | null; signaturesCount?: number
+}) {
   return createElement(Document, {},
     createElement(Page, { size: 'A4', style: styles.page },
+      /* Шапка — справа, как в официальных обращениях */
+      (recipient || orgName)
+        ? createElement(View, { style: headerStyles.wrap },
+            createElement(View, { style: headerStyles.block },
+              recipient
+                ? createElement(View, { style: headerStyles.row },
+                    createElement(Text, { style: headerStyles.label }, 'КОМУ'),
+                    createElement(Text, { style: headerStyles.value }, recipient),
+                  )
+                : null,
+              orgName
+                ? createElement(View, { style: headerStyles.row },
+                    createElement(Text, { style: headerStyles.label }, 'ОТ КОГО'),
+                    createElement(Text, { style: headerStyles.value }, orgName),
+                    signaturesCount
+                      ? createElement(Text, { style: headerStyles.sub }, `${signaturesCount} подписантов`)
+                      : null,
+                  )
+                : null,
+            ),
+          )
+        : null,
       createElement(View, { style: styles.section },
         createElement(Text, { style: styles.title }, title),
         createElement(Text, { style: styles.body }, finalText),
@@ -99,9 +133,17 @@ function PetitionPDF({ title, finalText, rows }: { title: string; finalText: str
 export async function generatePetitionPdf(
   title: string,
   finalText: string,
-  signatures: SignatureInput[]
+  signatures: SignatureInput[],
+  options?: { recipient?: string | null; orgName?: string | null }
 ): Promise<Buffer> {
   const rows = buildRegistryRows(signatures)
-  const element = createElement(PetitionPDF, { title, finalText, rows })
+  const element = createElement(PetitionPDF, {
+    title,
+    finalText,
+    rows,
+    recipient: options?.recipient,
+    orgName: options?.orgName,
+    signaturesCount: signatures.length,
+  })
   return renderToBuffer(element as any)
 }

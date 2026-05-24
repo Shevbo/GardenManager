@@ -7,6 +7,7 @@ export default function NewPetitionPage() {
   const router = useRouter()
   const [orgId, setOrgId] = useState('')
   const [title, setTitle] = useState('')
+  const [recipient, setRecipient] = useState('')
   const [draftText, setDraftText] = useState('')
   const [discussionDeadline, setDiscussionDeadline] = useState('')
   const [signingDeadline, setSigningDeadline] = useState('')
@@ -29,7 +30,7 @@ export default function NewPetitionPage() {
       const res = await fetch('/api/petitions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, title, draftText, discussionDeadline, signingDeadline }),
+        body: JSON.stringify({ orgId, title, recipient, draftText, discussionDeadline, signingDeadline }),
       })
       const data = await res.json() as { id?: string; error?: string }
       if (!res.ok || !data.id) {
@@ -183,6 +184,51 @@ export default function NewPetitionPage() {
                 color: 'var(--ink)',
                 background: 'transparent',
                 letterSpacing: '-0.01em',
+              }}
+            />
+          </div>
+
+          {/* Recipient (Кому) */}
+          <div style={{
+            background: 'var(--white)',
+            borderRadius: '14px',
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
+            marginBottom: '12px',
+            boxShadow: '0 1px 3px rgba(10,61,46,0.05)',
+          }}>
+            <div style={{
+              padding: '10px 20px',
+              borderBottom: '1px solid var(--border)',
+              background: 'var(--cream)',
+            }}>
+              <label style={{
+                fontFamily: 'Unbounded, sans-serif',
+                fontSize: '10px',
+                fontWeight: 600,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-soft)',
+              }}>
+                Кому
+              </label>
+            </div>
+            <textarea
+              value={recipient}
+              onChange={e => setRecipient(e.target.value)}
+              placeholder={'Главе управы района Хамовники г. Москвы\nИванову А.А.'}
+              style={{
+                width: '100%',
+                padding: '16px 20px',
+                border: 'none',
+                outline: 'none',
+                resize: 'none',
+                minHeight: '80px',
+                fontFamily: 'Golos Text, sans-serif',
+                fontSize: '14px',
+                lineHeight: '1.65',
+                color: 'var(--ink)',
+                background: 'transparent',
               }}
             />
           </div>

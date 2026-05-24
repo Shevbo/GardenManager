@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { orgId, title, draftText, discussionDeadline, signingDeadline, materials } =
+  const { orgId, title, recipient, draftText, discussionDeadline, signingDeadline, materials } =
     body as {
-      orgId?: string; title?: string; draftText?: string
+      orgId?: string; title?: string; recipient?: string; draftText?: string
       discussionDeadline?: string; signingDeadline?: string
       materials?: Array<{ key: string; name: string; mimeType: string }>
     }
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     data: {
       orgId,
       title: title.trim(),
+      recipient: recipient?.trim() || null,
       draftText: draftText.trim(),
       createdBy: session.user.id,
       discussionDeadline: discussionDeadline ? new Date(discussionDeadline) : null,

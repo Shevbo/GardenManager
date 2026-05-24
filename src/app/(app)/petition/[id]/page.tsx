@@ -25,6 +25,7 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
   const petition = await prisma.petition.findUnique({
     where: { id },
     include: {
+      org: { select: { name: true }, },
       materials: true,
       comments: {
         include: { user: { select: { name: true, email: true } } },
@@ -238,6 +239,85 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
               Текст заявления
             </span>
           </div>
+          {/* ── Official header (шапка) ─────────────────────────── */}
+          {(petition.recipient || petition.org.name) && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '0',
+              borderBottom: '1px solid var(--border)',
+            }}>
+              {/* Кому */}
+              {petition.recipient && (
+                <div style={{
+                  padding: '20px 28px',
+                  borderRight: '1px solid var(--border)',
+                }}>
+                  <p style={{
+                    fontFamily: 'Unbounded, sans-serif',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: 'var(--ink-soft)',
+                    margin: '0 0 8px',
+                  }}>
+                    Кому
+                  </p>
+                  <p style={{
+                    fontFamily: 'Golos Text, sans-serif',
+                    fontSize: '14px',
+                    lineHeight: '1.65',
+                    color: 'var(--ink)',
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {petition.recipient}
+                  </p>
+                </div>
+              )}
+              {/* От кого */}
+              <div style={{
+                padding: '20px 28px',
+                gridColumn: petition.recipient ? undefined : '1 / -1',
+              }}>
+                <p style={{
+                  fontFamily: 'Unbounded, sans-serif',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'var(--ink-soft)',
+                  margin: '0 0 8px',
+                }}>
+                  От кого
+                </p>
+                <p style={{
+                  fontFamily: 'Golos Text, sans-serif',
+                  fontSize: '14px',
+                  lineHeight: '1.65',
+                  color: 'var(--ink)',
+                  margin: '0 0 8px',
+                }}>
+                  {petition.org.name}
+                </p>
+                <p style={{
+                  fontFamily: 'Golos Text, sans-serif',
+                  fontSize: '13px',
+                  color: 'var(--ink-soft)',
+                  margin: 0,
+                }}>
+                  {petition._count.signatures > 0 && (
+                    <>{petition._count.signatures} {
+                      petition._count.signatures === 1 ? 'подписант' :
+                      petition._count.signatures < 5 ? 'подписанта' : 'подписантов'
+                    }</>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div style={{
             padding: '28px 28px 32px',
             fontFamily: 'Golos Text, sans-serif',

@@ -44,9 +44,9 @@ export async function PATCH(
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { status, finalText, discussionDeadline, signingDeadline } =
+  const { status, finalText, recipient, discussionDeadline, signingDeadline } =
     body as {
-      status?: string; finalText?: string
+      status?: string; finalText?: string; recipient?: string
       discussionDeadline?: string; signingDeadline?: string
     }
 
@@ -64,6 +64,7 @@ export async function PATCH(
     data: {
       ...(status && { status: status as PetitionStatus }),
       ...(finalText !== undefined && { finalText }),
+      ...(recipient !== undefined && { recipient: recipient?.trim() || null }),
       ...(discussionDeadline && { discussionDeadline: new Date(discussionDeadline) }),
       ...(signingDeadline && { signingDeadline: new Date(signingDeadline) }),
     },
