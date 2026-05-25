@@ -8,6 +8,7 @@ import { CopyLinkButton } from '@/components/petition/CopyLinkButton'
 import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
+import { canInteractWithPetition } from '@/lib/petition-access'
 
 const STATUS_MAP: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string }> = {
   DRAFT:       { label: 'Черновик',   textColor: '#6B6B63', bgColor: '#F0EDE6',  borderColor: '#C4BEB4' },
@@ -50,6 +51,8 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
     where: { id },
     include: {
       org: { select: { name: true } },
+      orgGroup: { select: { id: true, name: true } },
+      activity: { select: { id: true, name: true } },
       materials: true,
       createdByUser: { select: { name: true, phone: true } },
       comments: {
@@ -85,7 +88,10 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
     : null
 
   const isCollecting = ['SIGNING', 'CLOSED', 'EXPORTED'].includes(petition.status)
-  const canSign = petition.status === 'SIGNING' && !userSignature && !!currentUserId
+  const canInteract = currentUserId
+    ? await canInteractWithPetition(currentUserId, id)
+    : false
+  const canSign = petition.status === 'SIGNING' && !userSignature && canInteract
   const statusInfo = STATUS_MAP[petition.status] ?? STATUS_MAP.DRAFT
 
   const showText =
@@ -169,6 +175,16 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
           }}>
             {statusInfo.label}
           </span>
+          {petition.activity && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber/10 text-amber border border-amber/20">
+              Только для: {petition.activity.name}
+            </span>
+          )}
+          {petition.orgGroup && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-forest/10 text-forest border border-forest/20">
+              Группа ЖК: {petition.orgGroup.name}
+            </span>
+          )}
           <span style={{ fontSize: '12px', color: 'var(--ink-soft)', fontFamily: 'Golos Text, sans-serif' }}>
             💬 {petition.comments.length}
             {' · '}
@@ -225,6 +241,22 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
                 borderRadius: '3px',
               }} />
             </div>
+          </div>
+        )}
+
+        {/* Join prompt for activity-targeted petitions */}
+        {petition.activityId && currentUserId && !canInteract && (
+          <div className="mt-4 p-4 bg-amber/5 border border-amber/20 rounded-2xl">
+            <p className="text-sm text-ink/70">
+              Чтобы комментировать и подписывать это заявление, вступите в активность{' '}
+              <span className="font-medium text-ink">{petition.activity?.name}</span>.
+            </p>
+            <a
+              href="/activities"
+              className="inline-block mt-2 text-sm font-medium text-forest hover:underline"
+            >
+              Перейти к активностям →
+            </a>
           </div>
         )}
 
