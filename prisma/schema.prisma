@@ -40,6 +40,8 @@ model Organization {
   memberships Membership[]
   petitions   Petition[]
   inviteLinks InviteLink[]
+  orgGroups   OrgGroupMembership[]
+  activities  Activity[]
 }
 
 model Building {
@@ -87,8 +89,10 @@ model User {
   comments          PetitionComment[]
   signatures        PetitionSignature[]
   createdPetitions  Petition[]          @relation("PetitionCreator")
-  petitionReactions PetitionReaction[]
-  commentReactions  CommentReaction[]
+  petitionReactions    PetitionReaction[]
+  commentReactions     CommentReaction[]
+  activityMemberships  ActivityMembership[]
+  createdOrgGroups     OrgGroup[]
 }
 
 model Account {
@@ -163,6 +167,9 @@ model Petition {
   isPublic           Boolean        @default(true)
   updatedAt          DateTime       @updatedAt
 
+  orgGroupId String?
+  activityId String?
+
   org           Organization         @relation(fields: [orgId], references: [id])
   createdByUser User                 @relation("PetitionCreator", fields: [createdBy], references: [id])
   materials     PetitionMaterial[]
@@ -170,6 +177,8 @@ model Petition {
   signatures    PetitionSignature[]
   aiRevisions   PetitionAIRevision[]
   reactions     PetitionReaction[]
+  orgGroup      OrgGroup?            @relation(fields: [orgGroupId], references: [id], onDelete: SetNull)
+  activity      Activity?            @relation(fields: [activityId], references: [id], onDelete: SetNull)
 
   @@index([orgId])
   @@index([orgId, status])
@@ -279,4 +288,50 @@ model CommentReaction {
 
   @@unique([commentId, userId, emoji])
   @@index([commentId])
+}
+
+model OrgGroup {
+  id        String   @id @default(cuid())
+  name      String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  createdByUser User               @relation(fields: [createdBy], references: [id])
+  orgs          OrgGroupMembership[]
+  petitions     Petition[]
+}
+
+model OrgGroupMembership {
+  orgGroupId     String
+  organizationId String
+
+  orgGroup OrgGroup     @relation(fields: [orgGroupId], references: [id], onDelete: Cascade)
+  org      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([orgGroupId, organizationId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  name      String
+  orgId     String?
+  createdAt DateTime @default(now())
+
+  org         Organization?      @relation(fields: [orgId], references: [id])
+  memberships ActivityMembership[]
+  petitions   Petition[]
+}
+
+model ActivityMembership {
+  id         String   @id @default(cuid())
+  activityId String
+  userId     String
+  joinedAt   DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
 }
