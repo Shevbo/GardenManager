@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { AudienceSelector } from '@/components/petition/AudienceSelector'
 
 export default function NewPetitionPage() {
   const router = useRouter()
@@ -13,6 +14,8 @@ export default function NewPetitionPage() {
   const [signingDeadline, setSigningDeadline] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [orgGroupId, setOrgGroupId] = useState('')
+  const [activityId, setActivityId] = useState('')
 
   useEffect(() => {
     fetch('/api/me')
@@ -30,7 +33,7 @@ export default function NewPetitionPage() {
       const res = await fetch('/api/petitions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, title, recipient, draftText, discussionDeadline, signingDeadline }),
+        body: JSON.stringify({ orgId, title, recipient, draftText, discussionDeadline, signingDeadline, orgGroupId: orgGroupId || undefined, activityId: activityId || undefined }),
       })
       const data = await res.json() as { id?: string; error?: string }
       if (!res.ok || !data.id) {
@@ -376,6 +379,24 @@ export default function NewPetitionPage() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Audience */}
+          <div style={{
+            background: 'var(--white)',
+            borderRadius: '14px',
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
+            marginBottom: '28px',
+            boxShadow: '0 1px 3px rgba(10,61,46,0.05)',
+            padding: '18px 20px',
+          }}>
+            <AudienceSelector
+              orgGroupId={orgGroupId}
+              activityId={activityId}
+              onOrgGroupChange={setOrgGroupId}
+              onActivityChange={setActivityId}
+            />
           </div>
 
           {/* Submit */}
