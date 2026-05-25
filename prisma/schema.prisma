@@ -182,6 +182,8 @@ model Petition {
 
   @@index([orgId])
   @@index([orgId, status])
+  @@index([orgGroupId])
+  @@index([activityId])
 }
 
 model PetitionMaterial {
