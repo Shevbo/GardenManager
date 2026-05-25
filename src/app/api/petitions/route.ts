@@ -36,16 +36,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { orgId, title, recipient, draftText, discussionDeadline, signingDeadline, materials } =
+  const { orgId, title, recipient, draftText, discussionDeadline, signingDeadline, materials, orgGroupId, activityId } =
     body as {
       orgId?: string; title?: string; recipient?: string; draftText?: string
       discussionDeadline?: string; signingDeadline?: string
       materials?: Array<{ key: string; name: string; mimeType: string }>
+      orgGroupId?: string; activityId?: string
     }
 
   if (!orgId || !title?.trim() || !draftText?.trim()) {
     return NextResponse.json(
       { error: 'orgId, title, draftText required' },
+      { status: 400 }
+    )
+  }
+
+  if (orgGroupId && activityId) {
+    return NextResponse.json(
+      { error: 'orgGroupId and activityId are mutually exclusive' },
       { status: 400 }
     )
   }
@@ -65,6 +73,8 @@ export async function POST(req: NextRequest) {
       createdBy: session.user.id,
       discussionDeadline: discussionDeadline ? new Date(discussionDeadline) : null,
       signingDeadline: signingDeadline ? new Date(signingDeadline) : null,
+      orgGroupId: orgGroupId ?? null,
+      activityId: activityId ?? null,
       materials: materials?.length
         ? {
             create: materials.map((m) => ({

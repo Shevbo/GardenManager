@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { canInteractWithPetition } from '@/lib/petition-access'
 
 const LEGAL_DISCLAIMER = `Подписывая данное заявление с подтверждением через SMS/email,
 я подтверждаю своё согласие с текстом заявления.
@@ -36,10 +37,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Petition not in SIGNING phase' }, { status: 400 })
   }
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, orgId: petition.orgId },
-  })
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const canInteract = await canInteractWithPetition(session.user.id, id)
+  if (!canInteract) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Derive verifiedVia server-side only (never trust client)
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })

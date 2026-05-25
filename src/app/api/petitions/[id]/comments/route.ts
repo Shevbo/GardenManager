@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { canInteractWithPetition } from '@/lib/petition-access'
 
 export async function GET(
   _req: NextRequest,
@@ -43,11 +44,8 @@ export async function POST(
   const petition = await prisma.petition.findUnique({ where: { id } })
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Verify membership
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, orgId: petition.orgId },
-  })
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const canInteract = await canInteractWithPetition(session.user.id, id)
+  if (!canInteract) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const comment = await prisma.petitionComment.create({
     data: {
