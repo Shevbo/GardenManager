@@ -260,6 +260,16 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
           </div>
         )}
 
+        {/* Access notice for orgGroup-targeted petitions */}
+        {petition.orgGroupId && currentUserId && !canInteract && (
+          <div className="mt-4 p-4 bg-cream border border-border rounded-2xl">
+            <p className="text-sm text-ink/70">
+              Это заявление доступно только участникам группы ЖК{' '}
+              <span className="font-medium text-ink">{petition.orgGroup?.name}</span>.
+            </p>
+          </div>
+        )}
+
         {/* Document card */}
         <div style={{
           background: 'var(--white)',

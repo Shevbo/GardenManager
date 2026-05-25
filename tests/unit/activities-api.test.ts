@@ -8,7 +8,7 @@ describe('GET /api/activities', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('returns 401 when unauthenticated', async () => {
-    vi.mocked(auth).mockResolvedValue(null)
+    ;(auth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     const { GET } = await import('@/app/api/activities/route')
     const req = new Request('http://localhost/api/activities')
     const res = await GET(req as any)

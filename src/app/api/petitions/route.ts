@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
       createdBy: session.user.id,
       discussionDeadline: discussionDeadline ? new Date(discussionDeadline) : null,
       signingDeadline: signingDeadline ? new Date(signingDeadline) : null,
-      orgGroupId: orgGroupId ?? null,
-      activityId: activityId ?? null,
+      orgGroupId: orgGroupId || null,
+      activityId: activityId || null,
       materials: materials?.length
         ? {
             create: materials.map((m) => ({

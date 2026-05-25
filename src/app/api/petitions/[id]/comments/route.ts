@@ -8,12 +8,18 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { id } = await params
+
+  const canInteract = await canInteractWithPetition(session.user.id, id)
+  if (!canInteract) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const comments = await prisma.petitionComment.findMany({
     where: { petitionId: id },
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true } },
+      user: { select: { id: true, name: true, email: true } },
     },
     orderBy: { createdAt: 'asc' },
   })
