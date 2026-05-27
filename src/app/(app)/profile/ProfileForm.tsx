@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
 
 interface Props {
   initialName: string | null
@@ -132,12 +133,10 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
           </div>
           <div>
             <label style={{ fontSize: '12px', color: 'var(--ink-soft)', display: 'block', marginBottom: '6px' }}>Адрес / квартира</label>
-            <input
-              type="text"
+            <AddressAutocomplete
               value={address}
-              onChange={e => setAddress(e.target.value)}
+              onChange={setAddress}
               placeholder="ул. Садовая 12, кв. 47"
-              style={inputStyle}
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

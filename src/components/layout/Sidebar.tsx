@@ -7,6 +7,7 @@ import {
   Vote,
   FileSignature,
   CheckSquare,
+  MessageSquare,
   Settings,
   Building2,
   ChevronDown,
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { href: '/assemblies',        icon: Vote,            label: 'Собрания' },
   { href: '/admin/petitions',   icon: FileSignature,   label: 'Заявления' },
   { href: '/activities',        icon: CheckSquare,     label: 'Активности' },
+  { href: '/chats',             icon: MessageSquare,   label: 'Чаты' },
 ];
 
 const BOTTOM_ITEMS = [

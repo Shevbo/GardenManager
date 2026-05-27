@@ -42,6 +42,7 @@ model Organization {
   inviteLinks InviteLink[]
   orgGroups   OrgGroupMembership[]
   activities  Activity[]
+  chatMessages ChatMessage[]
 }
 
 model Building {
@@ -93,6 +94,7 @@ model User {
   commentReactions     CommentReaction[]
   activityMemberships  ActivityMembership[]
   createdOrgGroups     OrgGroup[]
+  chatMessages         ChatMessage[]
 }
 
 model Account {
@@ -336,4 +338,17 @@ model ActivityMembership {
   @@unique([activityId, userId])
   @@index([activityId])
   @@index([userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
 }

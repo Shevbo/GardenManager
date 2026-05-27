@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
 
 interface Building {
   id: string
@@ -67,13 +68,11 @@ export default function BuildingsPage() {
       {showForm && (
         <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
           <h2 className="font-medium">Новый дом</h2>
-          <input
-            type="text"
+          <AddressAutocomplete
             value={address}
-            onChange={e => setAddress(e.target.value)}
+            onChange={setAddress}
             placeholder="Адрес дома (ул. Садовая, д. 1)"
             className="w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            onKeyDown={e => e.key === 'Enter' && addBuilding()}
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3">
