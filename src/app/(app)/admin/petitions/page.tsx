@@ -10,7 +10,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const NEXT_STEP: Record<string, string> = {
-  DRAFT: 'discussion', DISCUSSION: 'discussion', AI_REVISION: 'revision',
+  DRAFT: 'edit', DISCUSSION: 'discussion', AI_REVISION: 'revision',
   SIGNING: 'signing', CLOSED: 'export', EXPORTED: 'export',
 }
 

@@ -58,7 +58,7 @@ export default function ActivitiesPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-8 max-w-2xl overflow-y-auto flex-1">
       <h1 className="font-display text-2xl font-bold text-ink mb-1">Активности</h1>
       <p className="text-ink/50 text-sm mb-6">
         Вступайте в группы, чтобы участвовать в заявлениях для них

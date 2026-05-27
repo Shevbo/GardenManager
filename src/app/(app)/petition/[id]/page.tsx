@@ -94,6 +94,16 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
   const canSign = petition.status === 'SIGNING' && !userSignature && canInteract
   const statusInfo = STATUS_MAP[petition.status] ?? STATUS_MAP.DRAFT
 
+  const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+  const userMembership = currentUserId
+    ? await prisma.membership.findFirst({
+        where: { userId: currentUserId, orgId: petition.orgId },
+        select: { role: true },
+      })
+    : null
+  const isAdmin = !!userMembership && ADMIN_ROLES.includes(userMembership.role)
+  const canEdit = isAdmin && petition.status === 'DRAFT'
+
   const showText =
     ['SIGNING', 'CLOSED', 'EXPORTED'].includes(petition.status)
       ? (petition.finalText ?? petition.draftText)
@@ -193,6 +203,27 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
               <> · до {new Date(deadlineDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</>
             )}
           </span>
+          {canEdit && (
+            <Link
+              href={`/admin/petitions/${id}/edit`}
+              style={{
+                marginLeft: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                background: 'var(--amber)',
+                color: 'var(--ink)',
+                fontSize: '12px',
+                fontFamily: 'Golos Text, sans-serif',
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              ✎ Редактировать
+            </Link>
+          )}
         </div>
 
         {/* Signature counter */}
@@ -303,22 +334,27 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
               href={`/api/petitions/${id}/export`}
               target="_blank"
               rel="noopener noreferrer"
+              title="Скачать PDF"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
+                width: '30px',
+                height: '30px',
                 borderRadius: '4px',
                 border: '1px solid var(--border)',
-                background: 'var(--white)',
+                background: 'var(--cream)',
                 color: 'var(--ink)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                textDecoration: 'none',
                 fontSize: '11px',
                 fontFamily: 'Golos Text, sans-serif',
-                textDecoration: 'none',
-                fontWeight: 500,
+                fontWeight: 700,
               }}
             >
-              ↓ Просмотр PDF
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 2v6m0 0l-2.5-2.5M7 8l2.5-2.5M3 11h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </a>
             <CopyLinkButton url={publicUrl} />
           </div>

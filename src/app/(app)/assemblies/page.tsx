@@ -66,7 +66,7 @@ export default function AssembliesPage() {
   );
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 overflow-y-auto">
       <Topbar
         title="Собрания"
         subtitle={`${ASSEMBLIES.filter(a => a.status !== 'ARCHIVED').length} активных`}

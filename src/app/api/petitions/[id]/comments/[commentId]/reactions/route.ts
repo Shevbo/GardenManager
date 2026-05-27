@@ -47,13 +47,17 @@ export async function POST(
 
   const userId = session.user.id
 
-  const existing = await prisma.commentReaction.findUnique({
-    where: { commentId_userId_emoji: { commentId, userId, emoji } },
+  const existing = await prisma.commentReaction.findFirst({
+    where: { commentId, userId },
   })
+
+  if (existing && existing.emoji === emoji) {
+    await prisma.commentReaction.delete({ where: { id: existing.id } })
+    return NextResponse.json({ added: false })
+  }
 
   if (existing) {
     await prisma.commentReaction.delete({ where: { id: existing.id } })
-    return NextResponse.json({ added: false })
   }
 
   await prisma.commentReaction.create({ data: { commentId, userId, emoji } })

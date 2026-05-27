@@ -44,10 +44,11 @@ export async function PATCH(
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { status, finalText, recipient, discussionDeadline, signingDeadline } =
+  const { status, finalText, recipient, discussionDeadline, signingDeadline, title, draftText } =
     body as {
       status?: string; finalText?: string; recipient?: string
       discussionDeadline?: string; signingDeadline?: string
+      title?: string; draftText?: string
     }
 
   if (status) {
@@ -59,10 +60,19 @@ export async function PATCH(
     }
   }
 
+  if ((title !== undefined || draftText !== undefined) && petition.status !== 'DRAFT') {
+    return NextResponse.json(
+      { error: 'title and draftText editable only in DRAFT status' },
+      { status: 400 }
+    )
+  }
+
   const updated = await prisma.petition.update({
     where: { id },
     data: {
       ...(status && { status: status as PetitionStatus }),
+      ...(title !== undefined && { title: title.trim() }),
+      ...(draftText !== undefined && { draftText: draftText.trim() }),
       ...(finalText !== undefined && { finalText }),
       ...(recipient !== undefined && { recipient: recipient?.trim() || null }),
       ...(discussionDeadline && { discussionDeadline: new Date(discussionDeadline) }),

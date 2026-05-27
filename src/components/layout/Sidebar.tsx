@@ -6,27 +6,21 @@ import {
   LayoutDashboard,
   Vote,
   FileSignature,
-  Wallet,
   CheckSquare,
-  MessageSquare,
-  Bell,
   Settings,
   Building2,
   ChevronDown,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/dashboard',     icon: LayoutDashboard, label: 'Главная' },
-  { href: '/assemblies',    icon: Vote,            label: 'Собрания' },
-  { href: '/petitions',     icon: FileSignature,   label: 'Заявления' },
-  { href: '/finances',      icon: Wallet,          label: 'Финансы' },
-  { href: '/activities',    icon: CheckSquare,     label: 'Активности' },
-  { href: '/chats',         icon: MessageSquare,   label: 'Чаты', badge: 3 },
+  { href: '/dashboard',         icon: LayoutDashboard, label: 'Главная' },
+  { href: '/assemblies',        icon: Vote,            label: 'Собрания' },
+  { href: '/admin/petitions',   icon: FileSignature,   label: 'Заявления' },
+  { href: '/activities',        icon: CheckSquare,     label: 'Активности' },
 ];
 
 const BOTTOM_ITEMS = [
-  { href: '/notifications', icon: Bell,     label: 'Уведомления', badge: 7 },
-  { href: '/settings',      icon: Settings, label: 'Настройки' },
+  { href: '/admin/platform',    icon: Settings, label: 'Управление' },
 ];
 
 export function Sidebar() {
@@ -63,7 +57,7 @@ export function Sidebar() {
 
       {/* Main nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ href, icon: Icon, label, badge }) => {
+        {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link
@@ -78,11 +72,6 @@ export function Sidebar() {
             >
               <Icon size={17} className="shrink-0" />
               <span className="flex-1">{label}</span>
-              {badge && (
-                <span className="bg-amber text-ink text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {badge}
-                </span>
-              )}
             </Link>
           );
         })}
@@ -90,7 +79,7 @@ export function Sidebar() {
 
       {/* Bottom nav */}
       <div className="px-3 py-3 border-t border-white/10 space-y-0.5">
-        {BOTTOM_ITEMS.map(({ href, icon: Icon, label, badge }) => {
+        {BOTTOM_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
             <Link
@@ -105,11 +94,6 @@ export function Sidebar() {
             >
               <Icon size={17} className="shrink-0" />
               <span className="flex-1">{label}</span>
-              {badge && (
-                <span className="bg-red-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {badge}
-                </span>
-              )}
             </Link>
           );
         })}

@@ -61,6 +61,13 @@ export async function sendSigningInvite(
 }
 
 export async function sendEmailOtp(email: string, otp: string): Promise<void> {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[email:dev-fallback] OTP for ${email}: ${otp}`)
+      return
+    }
+    throw new Error('Email provider not configured (RESEND_API_KEY/EMAIL_FROM missing)')
+  }
   const safeOtp = escapeHtml(otp)
   await getResend().emails.send({
     from: FROM(),
