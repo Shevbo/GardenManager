@@ -19,6 +19,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'missing fields' }, { status: 400 })
   }
 
+  if (areaSqm !== undefined && (typeof areaSqm !== 'number' || areaSqm <= 0 || areaSqm > 100_000)) {
+    return NextResponse.json({ error: 'invalid areaSqm' }, { status: 400 })
+  }
+  if (sharePercent !== undefined && (typeof sharePercent !== 'number' || sharePercent <= 0 || sharePercent > 100)) {
+    return NextResponse.json({ error: 'invalid sharePercent' }, { status: 400 })
+  }
+
   const m = await prisma.membership.findUnique({ where: { id: membershipId } })
   if (!m) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (m.userId !== session.user.id) {

@@ -12,7 +12,7 @@ describe('POST /api/profile/ownership/declare-request', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('returns 401 when no session', async () => {
-    vi.mocked(auth).mockResolvedValue(null)
+    ;(auth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     const { POST } = await import('@/app/api/profile/ownership/declare-request/route')
     const req = new Request('http://localhost/api/profile/ownership/declare-request', {
       method: 'POST', body: JSON.stringify({ membershipId: 'm1' }),

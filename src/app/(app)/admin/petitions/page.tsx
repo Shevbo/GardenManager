@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
-import { getActiveOrgId } from '@/lib/active-org'
+import { getActiveOrgId, getUserOrgIds } from '@/lib/active-org'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 
@@ -20,8 +20,9 @@ export default async function AdminPetitionsPage() {
   if (!session?.user) redirect('/login')
 
   const activeOrgId = await getActiveOrgId(session.user.id)
-  const petitions = await prisma.petition.findMany({
-    ...(activeOrgId ? { where: { orgId: activeOrgId } } : {}),
+  const orgIds = activeOrgId ? [activeOrgId] : await getUserOrgIds(session.user.id)
+  const petitions = orgIds.length === 0 ? [] : await prisma.petition.findMany({
+    where: { orgId: { in: orgIds } },
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { signatures: true, comments: true } } },
   })
