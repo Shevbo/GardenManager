@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { requirePhoneVerified } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
 
 type VoteChoice = 'FOR' | 'AGAINST' | 'ABSTAIN'
@@ -10,6 +11,9 @@ export async function POST(
 ) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const gateRes = await requirePhoneVerified(session.user.id)
+  if (gateRes) return gateRes
 
   const { id } = await params
   let body: unknown
