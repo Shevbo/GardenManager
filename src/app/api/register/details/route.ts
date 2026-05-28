@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { normalizeAddress } from '@/lib/address-match'
+import { notifyAdminNewRegistration } from '@/lib/notifications'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -80,5 +81,15 @@ export async function POST(req: NextRequest) {
       },
     }),
   ])
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
+  notifyAdminNewRegistration({
+    requestedAddress: rawAddress.trim(),
+    userName: fullName.trim(),
+    userEmail: user?.email ?? null,
+    registrationId: userId,
+    apartmentNumber: apartmentNumber?.trim() || null,
+    areaSqm: areaSqm ?? null,
+  }).catch(() => {})
+
   return NextResponse.json({ ok: true, mode: 'pending' })
 }

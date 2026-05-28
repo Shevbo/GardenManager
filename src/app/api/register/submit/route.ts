@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { normalizeAddress } from '@/lib/address-match'
+import { notifyAdminNewRegistration } from '@/lib/notifications'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -151,6 +152,15 @@ export async function POST(req: NextRequest) {
 
     return [u]
   })
+
+  notifyAdminNewRegistration({
+    requestedAddress: rawAddress.trim(),
+    userName: fullName.trim(),
+    userEmail: emailNorm,
+    registrationId: user.id,
+    apartmentNumber: apartmentNumber?.trim() || null,
+    areaSqm: areaSqm ?? null,
+  }).catch(() => {})
 
   return NextResponse.json({ ok: true, mode: 'pending', userId: user.id }, { status: 201 })
 }
