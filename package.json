@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "verify:env": "tsx scripts/verify-env.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
