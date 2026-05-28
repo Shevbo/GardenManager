@@ -29,6 +29,17 @@ enum PetitionStatus {
   EXPORTED
 }
 
+enum UserStatus {
+  PENDING
+  ACTIVE
+}
+
+enum PendingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   slug      String   @unique
@@ -36,30 +47,33 @@ model Organization {
   type      OrgType
   createdAt DateTime @default(now())
 
-  buildings   Building[]
-  memberships Membership[]
-  petitions   Petition[]
-  inviteLinks InviteLink[]
-  orgGroups   OrgGroupMembership[]
-  activities  Activity[]
+  buildings    Building[]
+  memberships  Membership[]
+  petitions    Petition[]
+  inviteLinks  InviteLink[]
+  orgGroups    OrgGroupMembership[]
+  activities   Activity[]
   chatMessages ChatMessage[]
-  assemblies  Assembly[]
+  assemblies   Assembly[]
 }
 
 model Building {
-  id      String @id @default(cuid())
-  orgId   String
-  address String
+  id                String   @id @default(cuid())
+  orgId             String?
+  address           String
+  addressNormalized String?
+  createdBy         String?
+  createdAt         DateTime @default(now())
 
-  org        Organization @relation(fields: [orgId], references: [id])
+  org        Organization? @relation(fields: [orgId], references: [id])
   apartments Apartment[]
 
-  @@unique([orgId, address])
+  @@unique([addressNormalized])
   @@index([orgId])
 }
 
 model Apartment {
-  id         String  @id @default(cuid())
+  id         String @id @default(cuid())
   buildingId String
   number     String
   floor      Int?
@@ -75,29 +89,34 @@ model Apartment {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String?   @unique
-  phone         String?   @unique
-  name          String?
-  password      String?
-  emailVerified DateTime?
-  phoneVerified DateTime?
-  address       String?   @db.Text
-  createdAt     DateTime  @default(now())
+  id               String     @id @default(cuid())
+  email            String?    @unique
+  phone            String?    @unique
+  name             String?
+  password         String?
+  emailVerified    DateTime?
+  phoneVerified    DateTime?
+  address          String?    @db.Text
+  status           UserStatus @default(ACTIVE)
+  profileCompleted Boolean    @default(true)
+  shectoryUserId   String?    @unique
+  createdAt        DateTime   @default(now())
 
-  accounts          Account[]
-  sessions          Session[]
-  memberships       Membership[]
-  comments          PetitionComment[]
-  signatures        PetitionSignature[]
-  createdPetitions  Petition[]          @relation("PetitionCreator")
-  petitionReactions    PetitionReaction[]
-  commentReactions     CommentReaction[]
-  activityMemberships  ActivityMembership[]
-  createdOrgGroups     OrgGroup[]
-  chatMessages         ChatMessage[]
-  createdAssemblies    Assembly[]      @relation("AssemblyCreator")
-  assemblyVotes        AssemblyVote[]
+  accounts              Account[]
+  sessions              Session[]
+  memberships           Membership[]
+  comments              PetitionComment[]
+  signatures            PetitionSignature[]
+  createdPetitions      Petition[]             @relation("PetitionCreator")
+  petitionReactions     PetitionReaction[]
+  commentReactions      CommentReaction[]
+  activityMemberships   ActivityMembership[]
+  createdOrgGroups      OrgGroup[]
+  chatMessages          ChatMessage[]
+  createdAssemblies     Assembly[]             @relation("AssemblyCreator")
+  assemblyVotes         AssemblyVote[]
+  pendingRegistration   PendingRegistration?
+  ownershipDeclarations OwnershipDeclaration[]
 }
 
 model Account {
@@ -147,10 +166,12 @@ model Membership {
   isOwner     Boolean   @default(false)
   areaSqm     Float?
   verifiedAt  DateTime?
+  verifiedBy  String?
 
-  user      User         @relation(fields: [userId], references: [id])
-  org       Organization @relation(fields: [orgId], references: [id])
-  apartment Apartment?   @relation(fields: [apartmentId], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id])
+  org                   Organization           @relation(fields: [orgId], references: [id])
+  apartment             Apartment?             @relation(fields: [apartmentId], references: [id])
+  ownershipDeclarations OwnershipDeclaration[]
 
   @@unique([userId, orgId])
   @@index([orgId])
@@ -303,7 +324,7 @@ model OrgGroup {
   createdBy String
   createdAt DateTime @default(now())
 
-  createdByUser User               @relation(fields: [createdBy], references: [id])
+  createdByUser User                 @relation(fields: [createdBy], references: [id])
   orgs          OrgGroupMembership[]
   petitions     Petition[]
 }
@@ -324,7 +345,7 @@ model Activity {
   orgId     String?
   createdAt DateTime @default(now())
 
-  org         Organization?      @relation(fields: [orgId], references: [id])
+  org         Organization?        @relation(fields: [orgId], references: [id])
   memberships ActivityMembership[]
   petitions   Petition[]
 }
@@ -389,8 +410,8 @@ model Assembly {
   updatedAt     DateTime       @updatedAt
   closedAt      DateTime?
 
-  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdByUser User              @relation("AssemblyCreator", fields: [createdBy], references: [id])
+  org           Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdByUser User               @relation("AssemblyCreator", fields: [createdBy], references: [id])
   questions     AssemblyQuestion[]
 
   @@index([orgId, status])
@@ -398,12 +419,12 @@ model Assembly {
 }
 
 model AssemblyQuestion {
-  id                  String   @id @default(cuid())
+  id                  String  @id @default(cuid())
   assemblyId          String
   order               Int
-  text                String   @db.Text
-  description         String?  @db.Text
-  requiredMajorityPct Float    @default(50)
+  text                String  @db.Text
+  description         String? @db.Text
+  requiredMajorityPct Float   @default(50)
 
   assembly Assembly       @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
   votes    AssemblyVote[]
@@ -413,17 +434,55 @@ model AssemblyQuestion {
 }
 
 model AssemblyVote {
-  id          String      @id @default(cuid())
-  questionId  String
-  userId      String
-  choice      VoteChoice
-  areaSqm     Float
-  isOwner     Boolean
-  castAt      DateTime    @default(now())
+  id         String     @id @default(cuid())
+  questionId String
+  userId     String
+  choice     VoteChoice
+  areaSqm    Float
+  isOwner    Boolean
+  castAt     DateTime   @default(now())
 
   question AssemblyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([questionId, userId])
   @@index([questionId])
+}
+
+model PendingRegistration {
+  id                String        @id @default(cuid())
+  userId            String        @unique
+  requestedAddress  String
+  addressNormalized String?
+  apartmentNumber   String?
+  areaSqm           Float?
+  isOwner           Boolean       @default(true)
+  notes             String?       @db.Text
+  status            PendingStatus @default(PENDING)
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  rejectReason      String?
+  createdAt         DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([addressNormalized])
+}
+
+model OwnershipDeclaration {
+  id           String   @id @default(cuid())
+  userId       String
+  membershipId String
+  areaSqm      Float?
+  sharePercent Float?
+  declaredText String   @db.Text
+  smsToken     String
+  signedAt     DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([membershipId])
 }
