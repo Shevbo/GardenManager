@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
     ? await prisma.building.findUnique({ where: { addressNormalized: normalized } })
     : null
 
-  if (building) {
+  // Treat building-without-org as pending: we have no Membership target.
+  if (building && building.orgId) {
     const [user] = await prisma.$transaction(async (tx) => {
       const u = existing
         ? await tx.user.update({
@@ -82,18 +83,26 @@ export async function POST(req: NextRequest) {
         apartmentId = apt.id
       }
 
-      if (building.orgId) {
-        await tx.membership.create({
-          data: {
-            userId: u.id,
-            orgId: building.orgId,
-            apartmentId,
-            role: 'owner',
-            isOwner: true,
-            areaSqm: areaSqm ?? undefined,
-          },
-        })
-      }
+      await tx.membership.create({
+        data: {
+          userId: u.id,
+          orgId: building.orgId!,
+          apartmentId,
+          role: 'owner',
+          isOwner: true,
+          areaSqm: areaSqm ?? undefined,
+        },
+      })
+
+      // Consume the OTP token; re-issue a short-lived one for the post-submit signIn call.
+      await tx.verificationToken.deleteMany({ where: { identifier: emailNorm } })
+      await tx.verificationToken.create({
+        data: {
+          identifier: emailNorm,
+          token: otp.trim(),
+          expires: new Date(Date.now() + 60_000),
+        },
+      })
 
       return [u]
     })
@@ -137,6 +146,8 @@ export async function POST(req: NextRequest) {
         areaSqm: areaSqm ?? null,
       },
     })
+
+    await tx.verificationToken.deleteMany({ where: { identifier: emailNorm } })
 
     return [u]
   })
