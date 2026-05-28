@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { ProfileForm } from './ProfileForm'
+import { OwnershipDeclareCard } from '@/components/profile/OwnershipDeclareCard'
 
 export default async function ProfilePage() {
   const session = await auth()
@@ -15,6 +16,15 @@ export default async function ProfilePage() {
 
   if (!user) redirect('/login')
 
+  const memberships = await prisma.membership.findMany({
+    where: { userId: session.user.id },
+    include: {
+      org: { select: { name: true } },
+      apartment: { include: { building: { select: { address: true } } } },
+      ownershipDeclarations: { orderBy: { signedAt: 'desc' }, take: 1 },
+    },
+  })
+
   return (
     <div className="flex flex-col" style={{ height: '100vh' }}>
       <Topbar title="Профиль" subtitle={user.email ?? ''} />
@@ -25,6 +35,24 @@ export default async function ProfilePage() {
           initialPhone={user.phone}
           phoneVerified={!!user.phoneVerified}
         />
+        {memberships.length > 0 && (
+          <section className="mt-6 max-w-2xl mx-auto">
+            <h2 className="font-display text-lg font-bold text-ink mb-3">Подтверждение собственности</h2>
+            <div className="space-y-3">
+              {memberships.map(m => (
+                <OwnershipDeclareCard
+                  key={m.id}
+                  membershipId={m.id}
+                  orgName={m.org.name}
+                  apartmentNumber={m.apartment?.number ?? null}
+                  buildingAddress={m.apartment?.building?.address ?? null}
+                  currentAreaSqm={m.areaSqm}
+                  lastDeclaredAt={m.ownershipDeclarations[0]?.signedAt.toISOString() ?? null}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )
