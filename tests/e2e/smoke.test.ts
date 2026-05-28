@@ -25,13 +25,15 @@ test.describe('public smoke tests', () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 })
   })
 
-  test('address check endpoint responds for known address', async ({ request }) => {
+  test('address check endpoint normalizes input', async ({ request }) => {
     const res = await request.post('/api/register/check-address', {
-      data: { rawAddress: 'Москва, ул. Тестовая, д. 1' },
+      data: { rawAddress: 'Несуществующий город ул. Никогда, д. 9999' },
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
-    expect(body).toHaveProperty('matched')
-    expect(body).toHaveProperty('normalized')
+    // For an unknown address: matched is false, normalized contains the lowercased input
+    expect(body.matched).toBe(false)
+    expect(typeof body.normalized).toBe('string')
+    expect(body.normalized).toContain('никогда')
   })
 })
