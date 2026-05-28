@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
+import { getActiveOrgId, getUserOrgIds } from '@/lib/active-org'
 import Link from 'next/link'
 import { Plus, Vote as VoteIcon, Calendar } from 'lucide-react'
 
@@ -34,8 +35,9 @@ export default async function AssembliesPage() {
     where: { userId: session.user.id },
     select: { orgId: true, role: true },
   })
-  const orgIds = memberships.map(m => m.orgId)
   const isAdmin = memberships.some(m => ADMIN_ROLES.includes(m.role))
+  const activeOrgId = await getActiveOrgId(session.user.id)
+  const orgIds = activeOrgId ? [activeOrgId] : memberships.map(m => m.orgId)
 
   const assemblies = orgIds.length === 0 ? [] : await prisma.assembly.findMany({
     where: { orgId: { in: orgIds } },

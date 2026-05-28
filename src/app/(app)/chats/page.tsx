@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
+import { getActiveOrgId } from '@/lib/active-org'
 import Link from 'next/link'
 import { MessageSquare, Users } from 'lucide-react'
 
@@ -17,8 +18,12 @@ export default async function ChatsListPage() {
   const session = await auth()
   if (!session?.user) redirect('/login')
 
+  const activeOrgId = await getActiveOrgId(session.user.id)
   const memberships = await prisma.membership.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      ...(activeOrgId ? { orgId: activeOrgId } : {}),
+    },
     select: {
       org: {
         select: {
