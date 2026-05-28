@@ -10,8 +10,8 @@ import {
   MessageSquare,
   Settings,
   Building2,
-  ChevronDown,
 } from 'lucide-react';
+import { OrgSelector } from './OrgSelector';
 import { PendingBadge } from './PendingBadge';
 
 const NAV_ITEMS = [
@@ -44,19 +44,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Org selector */}
-      <div className="px-3 py-3 border-b border-white/10">
-        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/10 transition-colors text-left">
-          <div className="w-7 h-7 bg-amber/20 rounded-lg flex items-center justify-center shrink-0">
-            <span className="text-amber text-xs font-bold">ЖК</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-medium truncate">ЖК «Садовый»</p>
-            <p className="text-white/40 text-[10px] truncate">Москва, ул. Садовая 12</p>
-          </div>
-          <ChevronDown size={14} className="text-white/40 shrink-0" />
-        </button>
-      </div>
+      <OrgSelector />
 
       <PendingBadge />
 
