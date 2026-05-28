@@ -82,10 +82,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id
         token.email = user.email
+      }
+      if (token.id) {
+        const u = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { profileCompleted: true },
+        })
+        token.profileCompleted = u?.profileCompleted ?? true
       }
       return token
     },
@@ -93,6 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string
         if (token.email) session.user.email = token.email
+        ;(session.user as { profileCompleted?: boolean }).profileCompleted = token.profileCompleted as boolean | undefined
       }
       return session
     },
