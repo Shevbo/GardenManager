@@ -12,6 +12,7 @@ import {
   Building2,
   ChevronDown,
 } from 'lucide-react';
+import { PendingBadge } from './PendingBadge';
 
 const NAV_ITEMS = [
   { href: '/dashboard',         icon: LayoutDashboard, label: 'Главная' },
@@ -56,6 +57,8 @@ export function Sidebar() {
           <ChevronDown size={14} className="text-white/40 shrink-0" />
         </button>
       </div>
+
+      <PendingBadge />
 
       {/* Main nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
