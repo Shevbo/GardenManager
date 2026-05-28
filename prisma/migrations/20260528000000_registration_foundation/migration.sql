@@ -13,6 +13,7 @@ ALTER TABLE "Building" DROP CONSTRAINT IF EXISTS "Building_orgId_address_key";
 ALTER TABLE "Building" ALTER COLUMN "orgId" DROP NOT NULL;
 ALTER TABLE "Building" ADD COLUMN "addressNormalized" TEXT;
 ALTER TABLE "Building" ADD COLUMN "createdBy" TEXT;
+ALTER TABLE "Building" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 CREATE UNIQUE INDEX "Building_addressNormalized_key" ON "Building"("addressNormalized");
 
 -- Membership.verifiedBy

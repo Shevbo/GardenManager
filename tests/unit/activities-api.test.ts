@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { auth } from '@/lib/auth'
+import { requirePhoneVerified, isPlatformAdmin } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
 
 vi.mock('@/lib/auth', () => ({ auth: vi.fn() }))
+vi.mock('@/lib/permissions', () => ({
+  requirePhoneVerified: vi.fn(),
+  isPlatformAdmin: vi.fn(),
+}))
 
 describe('GET /api/activities', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -31,11 +36,15 @@ describe('GET /api/activities', () => {
 })
 
 describe('POST /api/activities', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(requirePhoneVerified).mockResolvedValue(null)
+    vi.mocked(isPlatformAdmin).mockResolvedValue(false)
+  })
 
   it('returns 403 for non-platform-admin', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1' } } as any)
-    vi.mocked(prisma.membership.findFirst).mockResolvedValue(null)
+    vi.mocked(isPlatformAdmin).mockResolvedValue(false)
     const { POST } = await import('@/app/api/activities/route')
     const req = new Request('http://localhost/api/activities', {
       method: 'POST',
@@ -48,7 +57,7 @@ describe('POST /api/activities', () => {
 
   it('creates activity for platform_admin', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin1' } } as any)
-    vi.mocked(prisma.membership.findFirst).mockResolvedValue({ id: 'm1', role: 'platform_admin' } as any)
+    vi.mocked(isPlatformAdmin).mockResolvedValue(true)
     vi.mocked(prisma.activity.create).mockResolvedValue(
       { id: 'a1', name: 'Инвалид', orgId: null, createdAt: new Date() } as any
     )
@@ -66,7 +75,10 @@ describe('POST /api/activities', () => {
 })
 
 describe('POST /api/activities/[id]/join', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(requirePhoneVerified).mockResolvedValue(null)
+  })
 
   it('returns 400 without consent', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1' } } as any)
