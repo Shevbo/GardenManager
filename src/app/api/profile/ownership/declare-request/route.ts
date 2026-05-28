@@ -38,7 +38,14 @@ export async function POST(req: NextRequest) {
   await prisma.verificationToken.create({
     data: { identifier, token: otp, expires: new Date(Date.now() + OTP_TTL_MS) },
   })
-  await sendSms(user.phone, `Garden Manager: код подтверждения декларации ${otp}. Действителен 10 минут.`)
 
-  return NextResponse.json({ ok: true })
+  let smsSent = true
+  try {
+    await sendSms(user.phone, `Garden Manager: код подтверждения декларации ${otp}. Действителен 10 минут.`)
+  } catch (e) {
+    smsSent = false
+    console.warn('[ownership:sms-send-failed]', (e as Error).message)
+  }
+
+  return NextResponse.json({ ok: true, smsSent })
 }
