@@ -43,6 +43,7 @@ model Organization {
   orgGroups   OrgGroupMembership[]
   activities  Activity[]
   chatMessages ChatMessage[]
+  assemblies  Assembly[]
 }
 
 model Building {
@@ -95,6 +96,8 @@ model User {
   activityMemberships  ActivityMembership[]
   createdOrgGroups     OrgGroup[]
   chatMessages         ChatMessage[]
+  createdAssemblies    Assembly[]      @relation("AssemblyCreator")
+  assemblyVotes        AssemblyVote[]
 }
 
 model Account {
@@ -351,4 +354,76 @@ model ChatMessage {
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([orgId, createdAt])
+}
+
+enum AssemblyType {
+  online
+  async_collect
+}
+
+enum AssemblyStatus {
+  DRAFT
+  ANNOUNCED
+  VOTING
+  CLOSED
+}
+
+enum VoteChoice {
+  FOR
+  AGAINST
+  ABSTAIN
+}
+
+model Assembly {
+  id            String         @id @default(cuid())
+  orgId         String
+  title         String
+  description   String?        @db.Text
+  type          AssemblyType
+  status        AssemblyStatus @default(DRAFT)
+  startsAt      DateTime
+  endsAt        DateTime
+  quorumPercent Float          @default(50)
+  createdBy     String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  closedAt      DateTime?
+
+  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdByUser User              @relation("AssemblyCreator", fields: [createdBy], references: [id])
+  questions     AssemblyQuestion[]
+
+  @@index([orgId, status])
+  @@index([orgId, createdAt])
+}
+
+model AssemblyQuestion {
+  id                  String   @id @default(cuid())
+  assemblyId          String
+  order               Int
+  text                String   @db.Text
+  description         String?  @db.Text
+  requiredMajorityPct Float    @default(50)
+
+  assembly Assembly       @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  votes    AssemblyVote[]
+
+  @@unique([assemblyId, order])
+  @@index([assemblyId])
+}
+
+model AssemblyVote {
+  id          String      @id @default(cuid())
+  questionId  String
+  userId      String
+  choice      VoteChoice
+  areaSqm     Float
+  isOwner     Boolean
+  castAt      DateTime    @default(now())
+
+  question AssemblyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, userId])
+  @@index([questionId])
 }

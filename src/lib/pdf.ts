@@ -147,3 +147,93 @@ export async function generatePetitionPdf(
   })
   return renderToBuffer(element as any)
 }
+
+interface AssemblyProtocolInput {
+  assembly: {
+    title: string
+    description: string | null
+    type: string
+    startsAt: Date
+    endsAt: Date
+    closedAt: Date | null
+    quorumPercent: number
+    createdByUser: { name: string | null }
+    org: { name: string }
+  }
+  questions: Array<{
+    order: number
+    text: string
+    requiredMajorityPct: number
+    forArea: number
+    againstArea: number
+    abstainArea: number
+    forPct: number
+    passed: boolean
+  }>
+  quorumPct: number
+  quorumReached: boolean
+  totalEligibleArea: number
+  totalVotedArea: number
+}
+
+function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
+  const { assembly, questions, quorumPct, quorumReached, totalEligibleArea, totalVotedArea } = input
+  const typeLabel = assembly.type === 'online' ? 'Очное / онлайн' : 'Заочное (сбор бюллетеней)'
+
+  return createElement(Document, {},
+    createElement(Page, { size: 'A4', style: styles.page },
+      createElement(Text, { style: styles.title }, 'ПРОТОКОЛ ОБЩЕГО СОБРАНИЯ СОБСТВЕННИКОВ'),
+
+      createElement(View, { style: styles.section },
+        createElement(Text, {}, `Организация: ${assembly.org.name}`),
+        createElement(Text, {}, `Тема: ${assembly.title}`),
+        createElement(Text, {}, `Форма проведения: ${typeLabel}`),
+        createElement(Text, {}, `Дата начала: ${assembly.startsAt.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}`),
+        createElement(Text, {}, `Дата окончания: ${assembly.endsAt.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}`),
+        ...(assembly.closedAt ? [createElement(Text, {}, `Закрыто: ${assembly.closedAt.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}`)] : []),
+        createElement(Text, {}, `Инициатор: ${assembly.createdByUser.name ?? '—'}`),
+      ),
+
+      ...(assembly.description
+        ? [createElement(View, { style: styles.section },
+            createElement(Text, { style: styles.sectionTitle }, 'Повестка'),
+            createElement(Text, { style: styles.body }, assembly.description),
+          )]
+        : []),
+
+      createElement(View, { style: styles.section },
+        createElement(Text, { style: styles.sectionTitle }, 'Кворум'),
+        createElement(Text, {}, `Требуемый кворум: ${assembly.quorumPercent}%`),
+        createElement(Text, {}, `Площадь, представленная участниками: ${totalVotedArea.toFixed(2)} м² из ${totalEligibleArea.toFixed(2)} м² (${quorumPct.toFixed(1)}%)`),
+        createElement(Text, { style: { fontWeight: 'bold', marginTop: 4 } },
+          quorumReached ? 'Кворум достигнут.' : 'Кворум НЕ достигнут.'),
+      ),
+
+      createElement(View, { style: styles.section },
+        createElement(Text, { style: styles.sectionTitle }, 'Результаты голосования'),
+        ...questions.map(q =>
+          createElement(View, { key: q.order, style: { marginBottom: 12 } },
+            createElement(Text, { style: { fontWeight: 'bold' } }, `Вопрос ${q.order + 1}. ${q.text}`),
+            createElement(Text, {}, `Требуемое большинство: ${q.requiredMajorityPct}%`),
+            createElement(Text, {}, `За: ${q.forArea.toFixed(2)} м² (${q.forPct.toFixed(1)}%)`),
+            createElement(Text, {}, `Против: ${q.againstArea.toFixed(2)} м²`),
+            createElement(Text, {}, `Воздержались: ${q.abstainArea.toFixed(2)} м²`),
+            createElement(Text, { style: { fontWeight: 'bold', marginTop: 2, color: q.passed ? '#0A3D2E' : '#B91C1C' } },
+              q.passed ? 'РЕШЕНИЕ ПРИНЯТО' : 'РЕШЕНИЕ НЕ ПРИНЯТО'),
+          )
+        ),
+      ),
+
+      createElement(Text, { style: styles.disclaimer },
+        'Протокол сформирован автоматически платформой Garden Manager (garden.shectory.ru). ' +
+        'Голоса учтены пропорционально площади собственности участников. ' +
+        'Дата и время указаны по московскому времени.'
+      ),
+    )
+  )
+}
+
+export async function generateAssemblyProtocolPdf(input: AssemblyProtocolInput): Promise<Buffer> {
+  const element = createElement(AssemblyProtocolPDF, input)
+  return renderToBuffer(element as any)
+}
