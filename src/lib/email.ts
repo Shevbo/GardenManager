@@ -1,12 +1,12 @@
-import { Resend } from 'resend'
+const UNISENDER_GO_ENDPOINT =
+  'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json'
 
-let _resend: Resend | null = null
-function getResend(): Resend {
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
-  return _resend
+type SendInput = {
+  to: string
+  subject: string
+  html: string
+  text?: string
 }
-
-const FROM = () => process.env.EMAIL_FROM!
 
 function escapeHtml(s: string): string {
   return s
@@ -16,14 +16,56 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+export async function sendEmail({ to, subject, html, text }: SendInput): Promise<void> {
+  const apiKey = process.env.UNISENDER_API_TOKEN
+  const fromEmail = process.env.EMAIL_FROM
+  if (!apiKey || !fromEmail) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[email:dev-fallback] ${to} — ${subject}`)
+      return
+    }
+    throw new Error('Email provider not configured (UNISENDER_API_TOKEN/EMAIL_FROM missing)')
+  }
+
+  const fromName = process.env.EMAIL_FROM_NAME ?? 'Garden Manager'
+
+  const res = await fetch(UNISENDER_GO_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-KEY': apiKey,
+    },
+    body: JSON.stringify({
+      message: {
+        recipients: [{ email: to }],
+        subject,
+        from_email: fromEmail,
+        from_name: fromName,
+        body: { html, plaintext: text ?? html.replace(/<[^>]+>/g, '') },
+      },
+    }),
+  })
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '')
+    throw new Error(`UniSender Go HTTP ${res.status}: ${errBody.slice(0, 200)}`)
+  }
+
+  const data = (await res.json().catch(() => null)) as
+    | { status?: string; message?: string; code?: number }
+    | null
+  if (data?.status === 'error') {
+    throw new Error(`UniSender Go error: ${data.message} (code ${data.code})`)
+  }
+}
+
 export async function sendNotSignedNotification(
   email: string,
   petitionTitle: string
 ): Promise<void> {
   const safeTitle = escapeHtml(petitionTitle)
   const safeSubjectTitle = petitionTitle.replace(/[\r\n]/g, ' ')
-  await getResend().emails.send({
-    from: FROM(),
+  await sendEmail({
     to: email,
     subject: `Срок подписания истёк — «${safeSubjectTitle}»`,
     html: `
@@ -45,8 +87,7 @@ export async function sendSigningInvite(
   const safeTitle = escapeHtml(petitionTitle)
   const safeSubjectTitle = petitionTitle.replace(/[\r\n]/g, ' ')
   const safeUrl = escapeHtml(petitionUrl)
-  await getResend().emails.send({
-    from: FROM(),
+  await sendEmail({
     to: email,
     subject: `Финальный текст готов — подпишите заявление «${safeSubjectTitle}»`,
     html: `
@@ -61,16 +102,8 @@ export async function sendSigningInvite(
 }
 
 export async function sendEmailOtp(email: string, otp: string): Promise<void> {
-  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`[email:dev-fallback] OTP for ${email}: ${otp}`)
-      return
-    }
-    throw new Error('Email provider not configured (RESEND_API_KEY/EMAIL_FROM missing)')
-  }
   const safeOtp = escapeHtml(otp)
-  await getResend().emails.send({
-    from: FROM(),
+  await sendEmail({
     to: email,
     subject: `Ваш код Garden Manager: ${otp}`,
     html: `

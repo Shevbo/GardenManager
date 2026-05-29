@@ -1,13 +1,6 @@
-import { Resend } from 'resend'
+import { sendEmail } from './email'
 
 const TELEGRAM_API = 'https://api.telegram.org/bot'
-
-let _resend: Resend | null = null
-function getResend(): Resend | null {
-  if (!process.env.RESEND_API_KEY) return null
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
-  return _resend
-}
 
 export async function sendTelegramAdmin(text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN
@@ -68,26 +61,20 @@ export async function notifyAdminNewRegistration(input: AdminNewRegistrationInpu
   await sendTelegramAdmin(tgText)
 
   if (adminEmail) {
-    const resend = getResend()
-    if (resend && process.env.EMAIL_FROM) {
-      try {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM,
-          to: adminEmail,
-          subject: `Garden: новая заявка на регистрацию — ${input.requestedAddress}`,
-          html: `<p>Поступила новая заявка на регистрацию:</p>
-            <ul>
-              <li><b>Адрес:</b> ${escapeHtml(input.requestedAddress)}${escapeHtml(aptLine)}</li>
-              <li><b>Заявитель:</b> ${escapeHtml(userLine)}${escapeHtml(areaLine)}</li>
-            </ul>
-            <p><a href="${escapeHtml(url)}">Открыть очередь</a></p>`,
-          text: `Новая заявка на регистрацию.\nАдрес: ${input.requestedAddress}${aptLine}\nЗаявитель: ${userLine}${areaLine}\n${url}`,
-        })
-      } catch (e) {
-        console.warn('[email] admin notification failed:', (e as Error).message)
-      }
-    } else {
-      console.warn(`[email:dev-fallback] admin → ${adminEmail}: new pending registration ${input.registrationId}`)
+    try {
+      await sendEmail({
+        to: adminEmail,
+        subject: `Garden: новая заявка на регистрацию — ${input.requestedAddress}`,
+        html: `<p>Поступила новая заявка на регистрацию:</p>
+          <ul>
+            <li><b>Адрес:</b> ${escapeHtml(input.requestedAddress)}${escapeHtml(aptLine)}</li>
+            <li><b>Заявитель:</b> ${escapeHtml(userLine)}${escapeHtml(areaLine)}</li>
+          </ul>
+          <p><a href="${escapeHtml(url)}">Открыть очередь</a></p>`,
+        text: `Новая заявка на регистрацию.\nАдрес: ${input.requestedAddress}${aptLine}\nЗаявитель: ${userLine}${areaLine}\n${url}`,
+      })
+    } catch (e) {
+      console.warn('[email] admin notification failed:', (e as Error).message)
     }
   }
 }
@@ -100,15 +87,9 @@ type UserApprovedInput = {
 
 export async function notifyUserApproved(input: UserApprovedInput): Promise<void> {
   if (!input.email) return
-  const resend = getResend()
-  if (!resend || !process.env.EMAIL_FROM) {
-    console.warn(`[email:dev-fallback] ${input.email}: registration approved (${input.address})`)
-    return
-  }
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? ''
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
+    await sendEmail({
       to: input.email,
       subject: 'Garden Manager: ваша заявка одобрена',
       html: `<p>Ваша регистрация по адресу <b>${escapeHtml(input.address)}</b> одобрена.</p>

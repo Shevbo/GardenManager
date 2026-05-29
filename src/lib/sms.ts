@@ -3,23 +3,21 @@ export function generateOtp(): string {
 }
 
 export async function sendSms(phone: string, message: string): Promise<void> {
-  const login = process.env.SMS_API_LOGIN
-  const password = process.env.SMS_API_PASSWORD
+  const apiKey = process.env.SMSC_API_TOKEN
 
-  if (!login || !password) {
+  if (!apiKey) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(`[sms:dev-fallback] ${phone}: ${message}`)
       return
     }
-    throw new Error('SMS provider not configured (SMS_API_LOGIN/SMS_API_PASSWORD missing)')
+    throw new Error('SMS provider not configured (SMSC_API_TOKEN missing)')
   }
 
   const params = new URLSearchParams({
-    login,
-    psw: password,
+    apikey: apiKey,
     phones: phone,
     mes: message,
-    sender: process.env.SMS_SENDER ?? 'GARDEN',
+    sender: process.env.SMS_SENDER ?? 'SMSC.RU',
     fmt: '3',
   })
 
