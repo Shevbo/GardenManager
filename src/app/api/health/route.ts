@@ -17,7 +17,7 @@ export async function GET() {
         nextauth: !!process.env.NEXTAUTH_URL,
         bridge: !!process.env.SHECTORY_AUTH_BRIDGE_SECRET,
         dadata: !!process.env.DADATA_API_KEY,
-        sms: !!process.env.SMSC_API_TOKEN,
+        sms: !!process.env.SMS_GATEWAY_URL && !!process.env.SMS_GATEWAY_AUTH,
         email: !!process.env.UNISENDER_API_TOKEN,
         telegram: !!process.env.TELEGRAM_BOT_TOKEN,
       },
