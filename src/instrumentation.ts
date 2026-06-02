@@ -21,6 +21,9 @@ export async function register() {
     DEEPSEEK_API_KEY: `DEEPSEEK_API_KEY${suffix}`,
     SMS_GATEWAY_URL: 'GARDEN_SMS_GATEWAY_URL',
     SMS_GATEWAY_AUTH: 'GARDEN_SMS_GATEWAY_AUTH',
+    // App reads process.env.DADATA_API_KEY (legacy name), Ключник хранит как DADATA_API_TOKEN
+    DADATA_API_KEY: 'DADATA_API_TOKEN',
+    UNISENDER_API_TOKEN: 'UNISENDER_API_TOKEN',
   }
 
   const { bootstrapSecrets } = await import('./lib/keymaster')
