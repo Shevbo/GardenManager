@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import type { PetitionStatus } from '@/lib/petition-status'
+import { CopyLinkButton } from './CopyLinkButton'
 
 const STEPS: { status: PetitionStatus; label: string }[] = [
   { status: 'DRAFT',       label: 'Черновик' },
@@ -118,25 +119,29 @@ export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
         )
       })}
 
-      {/* visibility toggle */}
-      <button
-        onClick={toggleVisibility}
-        style={{
-          marginLeft: 'auto',
-          padding: '4px 12px',
-          borderRadius: '4px',
-          border: '1px solid var(--border)',
-          background: isPublic ? '#D6F4E5' : '#F3F4F6',
-          color: isPublic ? '#0A3D2E' : '#374151',
-          fontSize: '10px',
-          fontFamily: 'Unbounded, sans-serif',
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          cursor: 'pointer',
-        }}
-      >
-        {isPublic ? '🌐 Публично' : '🔒 Скрыто'}
-      </button>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* visibility toggle */}
+        <button
+          onClick={toggleVisibility}
+          style={{
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '1px solid var(--border)',
+            background: isPublic ? '#D6F4E5' : '#F3F4F6',
+            color: isPublic ? '#0A3D2E' : '#374151',
+            fontSize: '10px',
+            fontFamily: 'Unbounded, sans-serif',
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            cursor: 'pointer',
+          }}
+        >
+          {isPublic ? '🌐 Публично' : '🔒 Скрыто'}
+        </button>
+        {isPublic && (
+          <CopyLinkButton url={`${typeof window !== 'undefined' ? window.location.origin : ''}/petition/${petitionId}`} />
+        )}
+      </div>
     </div>
   )
 }

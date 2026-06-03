@@ -15,6 +15,8 @@ export function OwnershipDeclareCard({
   currentAreaSqm, lastDeclaredAt,
 }: Props) {
   const [step, setStep] = useState<'idle' | 'otp'>('idle')
+  const [revoking, setRevoking] = useState(false)
+  const [revoked, setRevoked] = useState(false)
   const [areaSqm, setAreaSqm] = useState(currentAreaSqm?.toString() ?? '')
   const [sharePercent, setSharePercent] = useState('')
   const [otp, setOtp] = useState('')
@@ -41,6 +43,21 @@ export function OwnershipDeclareCard({
       }
       setStep('otp')
     } finally { setLoading(false) }
+  }
+
+  async function revoke() {
+    if (!window.confirm('Отозвать декларацию собственности?\n\nВаш голос в голосованиях больше не будет учитываться по площади.')) return
+    setRevoking(true); setError('')
+    try {
+      const res = await fetch('/api/profile/ownership/declare-revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ membershipId }),
+      })
+      const d = await res.json() as { ok?: boolean; error?: string }
+      if (!res.ok || !d.ok) { setError(d.error || 'Ошибка отзыва'); return }
+      setRevoked(true); setSuccess(null)
+    } finally { setRevoking(false) }
   }
 
   async function verify() {
@@ -83,10 +100,17 @@ export function OwnershipDeclareCard({
         )}
       </div>
 
-      {(success || lastDeclaredAt) ? (
-        <p className="text-xs text-ink/50">
-          Декларация подписана {success ?? new Date(lastDeclaredAt!).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+      {!revoked && (success || lastDeclaredAt) ? (
+        <>
+          <p className="text-xs text-ink/50 mb-3">
+            Декларация подписана {success ?? new Date(lastDeclaredAt!).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+          {error && <p className="text-sm text-red-500 mb-2">{error}</p>}
+          <button onClick={revoke} disabled={revoking}
+            className="text-xs text-ink/40 hover:text-red-500 underline underline-offset-2 transition-colors disabled:opacity-50">
+            {revoking ? 'Отзываем...' : 'Отозвать подпись'}
+          </button>
+        </>
       ) : step === 'idle' ? (
         <>
           <p className="text-sm text-ink/70 mb-3">

@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { getActiveOrgId, getUserOrgIds } from '@/lib/active-org'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { DeletePetitionButton } from './DeletePetitionButton'
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Черновик', DISCUSSION: 'Обсуждение', AI_REVISION: 'AI Ревизия',
@@ -54,6 +55,7 @@ export default async function AdminPetitionsPage() {
               <Link href={`/admin/petitions/${p.id}/${NEXT_STEP[p.status] ?? 'discussion'}`}>
                 <Button size="sm" variant="secondary">→</Button>
               </Link>
+              <DeletePetitionButton petitionId={p.id} title={p.title} />
             </div>
           </div>
         ))}

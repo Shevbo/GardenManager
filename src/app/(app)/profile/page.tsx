@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { ProfileForm } from './ProfileForm'
 import { OwnershipDeclareCard } from '@/components/profile/OwnershipDeclareCard'
+import { LogoutButton } from '@/components/auth/LogoutButton'
 
 export default async function ProfilePage() {
   const session = await auth()
@@ -27,7 +28,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex flex-col" style={{ height: '100vh' }}>
-      <Topbar title="Профиль" subtitle={user.email ?? ''} />
+      <Topbar title="Профиль" subtitle={user.email ?? ''} actions={<LogoutButton />} />
       <div className="flex-1 overflow-y-auto px-5 py-6">
         <ProfileForm
           initialName={user.name}

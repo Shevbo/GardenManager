@@ -120,7 +120,7 @@ export default async function PetitionPage({ params }: { params: Promise<{ id: s
   const publicUrl = `${appUrl}/petition/${id}`
 
   return (
-    <div style={{ minHeight: '100%', background: 'var(--cream)', overflowY: 'auto' }}>
+    <div style={{ flex: 1, background: 'var(--cream)', overflowY: 'auto' }}>
 
       {/* Topbar */}
       <div style={{

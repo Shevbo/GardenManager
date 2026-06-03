@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Building2, Home, Plus, Trash2, ChevronDown, ChevronRight, User, BadgeCheck, Pencil, Check, X } from 'lucide-react'
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
 
 type Member = {
   id: string; role: string; isOwner: boolean; areaSqm: number | null; verifiedAt: string | null
@@ -36,6 +37,10 @@ export default function OrgTreePage() {
   const [editBldAddr, setEditBldAddr] = useState('')
   const [editingAptId, setEditingAptId] = useState<string | null>(null)
   const [editApt, setEditApt] = useState<{ number: string; floor: string; entrance: string; areaSqm: string }>({ number: '', floor: '', entrance: '', areaSqm: '' })
+  const [addingMemberAptId, setAddingMemberAptId] = useState<string | null>(null)
+  const [newMemberEmail, setNewMemberEmail] = useState('')
+  const [newMemberRole, setNewMemberRole] = useState('owner')
+  const [addingMemberLoading, setAddingMemberLoading] = useState(false)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -141,6 +146,36 @@ export default function OrgTreePage() {
     await load()
   }
 
+  async function deleteMembership(membershipId: string, name: string) {
+    if (!confirm(`Удалить участника ${name}?`)) return
+    setError('')
+    const res = await fetch(`/api/admin/platform/memberships/${membershipId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'Не удалось удалить'); return
+    }
+    await load()
+  }
+
+  async function addMemberToApartment(e: React.FormEvent, apartmentId: string) {
+    e.preventDefault()
+    if (!newMemberEmail.trim()) return
+    setAddingMemberLoading(true); setError('')
+    try {
+      const res = await fetch(`/api/admin/platform/apartments/${apartmentId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newMemberEmail.trim(), role: newMemberRole, isOwner: newMemberRole === 'owner' }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || 'Не удалось добавить'); return
+      }
+      setAddingMemberAptId(null); setNewMemberEmail(''); setNewMemberRole('owner')
+      await load()
+    } finally { setAddingMemberLoading(false) }
+  }
+
   if (loading) return <div className="p-8">Загрузка...</div>
   if (!org) return <div className="p-8 text-red-500">Организация не найдена</div>
 
@@ -175,6 +210,10 @@ export default function OrgTreePage() {
                 <User size={14} className="text-ink/40" />
                 <span>{m.user.name ?? m.user.email}</span>
                 <span className="text-xs text-ink/40">· {m.role}{m.isOwner && ' · собственник'}</span>
+                <button onClick={() => deleteMembership(m.id, m.user.name ?? m.user.email ?? m.id)}
+                  className="ml-auto p-0.5 text-ink/30 hover:text-red-500 transition-colors" title="Удалить участника">
+                  <Trash2 size={12} />
+                </button>
               </li>
             ))}
           </ul>
@@ -299,9 +338,39 @@ export default function OrgTreePage() {
                                     <span className="text-ink/40">· {m.role}{m.isOwner && ' · собственник'}</span>
                                     {m.areaSqm && <span className="text-ink/40">· {m.areaSqm} м²</span>}
                                     {m.verifiedAt && <span className="text-forest text-[10px]">✓ ПЭП</span>}
+                                    <button onClick={() => deleteMembership(m.id, m.user.name ?? m.user.email ?? m.id)}
+                                      className="ml-auto p-0.5 text-ink/20 hover:text-red-500 transition-colors">
+                                      <Trash2 size={11} />
+                                    </button>
                                   </li>
                                 ))}
                               </ul>
+                            )}
+                            {/* Add member to apartment */}
+                            {addingMemberAptId === a.id ? (
+                              <form onSubmit={e => addMemberToApartment(e, a.id)} className="mt-2 flex gap-1.5 items-center flex-wrap">
+                                <input type="email" value={newMemberEmail} onChange={e => setNewMemberEmail(e.target.value)}
+                                  placeholder="email пользователя" autoFocus
+                                  className="flex-1 min-w-0 px-2 py-1 border border-border rounded-lg text-xs" />
+                                <select value={newMemberRole} onChange={e => setNewMemberRole(e.target.value)}
+                                  className="px-2 py-1 border border-border rounded-lg text-xs">
+                                  <option value="owner">Собственник</option>
+                                  <option value="tenant">Арендатор</option>
+                                </select>
+                                <button type="submit" disabled={addingMemberLoading}
+                                  className="px-2 py-1 bg-forest text-white rounded-lg text-xs disabled:opacity-50">
+                                  {addingMemberLoading ? '...' : '+ Добавить'}
+                                </button>
+                                <button type="button" onClick={() => { setAddingMemberAptId(null); setNewMemberEmail('') }}
+                                  className="px-2 py-1 border border-border rounded-lg text-xs">
+                                  Отмена
+                                </button>
+                              </form>
+                            ) : (
+                              <button onClick={() => { setAddingMemberAptId(a.id); setNewMemberEmail('') }}
+                                className="mt-1.5 text-xs text-forest/70 hover:text-forest flex items-center gap-1">
+                                <Plus size={11} /> Добавить участника
+                              </button>
                             )}
                           </div>
                         )}
@@ -336,9 +405,14 @@ export default function OrgTreePage() {
       <div className="mt-4">
         {addingBuilding ? (
           <form onSubmit={createBuilding} className="bg-white border border-border rounded-2xl p-4 flex gap-2 items-center">
-            <input type="text" value={newBuildingAddress} onChange={e => setNewBuildingAddress(e.target.value)}
-              placeholder="Адрес здания (улица, дом)" autoFocus
-              className="flex-1 px-3 py-2 border border-border rounded-xl text-sm" />
+            <div className="flex-1">
+              <AddressAutocomplete
+                value={newBuildingAddress}
+                onChange={setNewBuildingAddress}
+                placeholder="Адрес здания (улица, дом)"
+                className="w-full px-3 py-2 border border-border rounded-xl text-sm"
+              />
+            </div>
             <button type="submit"
               className="px-4 py-2 bg-forest text-white rounded-xl text-sm font-medium">+ Создать</button>
             <button type="button" onClick={() => { setAddingBuilding(false); setNewBuildingAddress('') }}

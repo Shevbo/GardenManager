@@ -86,3 +86,39 @@ export async function PATCH(
 
   return NextResponse.json(updated)
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+  const petition = await prisma.petition.findUnique({
+    where: { id },
+    select: { orgId: true, status: true, _count: { select: { signatures: true } } },
+  })
+  if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId: session.user.id, orgId: petition.orgId },
+    select: { role: true },
+  })
+  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+  if (!ADMIN_ROLES.includes(membership.role)) {
+    return NextResponse.json({ error: 'Only admins can delete petitions' }, { status: 403 })
+  }
+
+  if (petition._count.signatures > 0) {
+    return NextResponse.json(
+      { error: 'Cannot delete petition with signatures. Close it instead.' },
+      { status: 400 }
+    )
+  }
+
+  await prisma.petition.delete({ where: { id } })
+  return NextResponse.json({ ok: true })
+}
