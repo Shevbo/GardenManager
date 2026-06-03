@@ -10,6 +10,7 @@ import { EmojiChips } from '@/components/petition/EmojiChips'
 import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
+import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
@@ -100,6 +101,8 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
         isPublic={petition.isPublic}
       />
 
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
 
         <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
@@ -157,6 +160,9 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
           currentUserId={session?.user?.id}
         />
 
+      </div>
+      </div>
+      <PdfPreviewSidebarLazy pdfUrl={`/api/petitions/${id}/preview`} />
       </div>
     </div>
   )
