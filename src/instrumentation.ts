@@ -23,7 +23,7 @@ export async function register() {
     SMS_GATEWAY_AUTH: 'GARDEN_SMS_GATEWAY_AUTH',
     // App reads process.env.DADATA_API_KEY (legacy name), Ключник хранит как DADATA_API_TOKEN
     DADATA_API_KEY: 'DADATA_API_TOKEN',
-    UNISENDER_API_TOKEN: 'UNISENDER_API_TOKEN',
+    SMTP_PASSWORD: 'GARDEN_SMTP_NOREPLY_PASSWORD',
   }
 
   const { bootstrapSecrets } = await import('./lib/keymaster')

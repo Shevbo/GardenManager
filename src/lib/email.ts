@@ -1,5 +1,4 @@
-const UNISENDER_GO_ENDPOINT =
-  'https://go2.unisender.ru/ru/transactional/api/v1/email/send.json'
+import nodemailer from 'nodemailer'
 
 type SendInput = {
   to: string
@@ -16,47 +15,40 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function createTransport() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? 'mail.shectory.ru',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER ?? 'noreply@shectory.ru',
+      pass: process.env.SMTP_PASSWORD,
+    },
+  })
+}
+
 export async function sendEmail({ to, subject, html, text }: SendInput): Promise<void> {
-  const apiKey = process.env.UNISENDER_API_TOKEN
-  const fromEmail = process.env.EMAIL_FROM
-  if (!apiKey || !fromEmail) {
+  const smtpPassword = process.env.SMTP_PASSWORD
+  const fromEmail = process.env.EMAIL_FROM ?? 'noreply@shectory.ru'
+
+  if (!smtpPassword) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(`[email:dev-fallback] ${to} — ${subject}`)
       return
     }
-    throw new Error('Email provider not configured (UNISENDER_API_TOKEN/EMAIL_FROM missing)')
+    throw new Error('Email provider not configured (SMTP_PASSWORD missing)')
   }
 
   const fromName = process.env.EMAIL_FROM_NAME ?? 'Garden Manager'
+  const transport = createTransport()
 
-  const res = await fetch(UNISENDER_GO_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-KEY': apiKey,
-    },
-    body: JSON.stringify({
-      message: {
-        recipients: [{ email: to }],
-        subject,
-        from_email: fromEmail,
-        from_name: fromName,
-        body: { html, plaintext: text ?? html.replace(/<[^>]+>/g, '') },
-      },
-    }),
+  await transport.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject,
+    html,
+    text: text ?? html.replace(/<[^>]+>/g, ''),
   })
-
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => '')
-    throw new Error(`UniSender Go HTTP ${res.status}: ${errBody.slice(0, 200)}`)
-  }
-
-  const data = (await res.json().catch(() => null)) as
-    | { status?: string; message?: string; code?: number }
-    | null
-  if (data?.status === 'error') {
-    throw new Error(`UniSender Go error: ${data.message} (code ${data.code})`)
-  }
 }
 
 export async function sendNotSignedNotification(
