@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 type PetitionDraft = {
   id: string
@@ -82,14 +81,10 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-8 overflow-y-auto flex-1">
-      <Link href="/admin/petitions" className="text-sm text-forest hover:underline">
-        ← К списку заявлений
-      </Link>
-      <h1 className="font-display text-2xl font-bold text-ink mt-3 mb-1">Редактирование черновика</h1>
-      <p className="text-ink/50 text-sm mb-6">Изменения доступны только в статусе «Черновик».</p>
+    <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
+      <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>Редактирование черновика</h1>
 
-      <form onSubmit={save} className="space-y-4 bg-white border border-border rounded-2xl p-6">
+      <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--forest)', padding: '22px', marginBottom: '16px' }}>
         <label className="block">
           <span className="text-xs font-medium text-ink/70 uppercase tracking-wider">Заголовок</span>
           <input type="text" value={title} onChange={e => setTitle(e.target.value)} required
