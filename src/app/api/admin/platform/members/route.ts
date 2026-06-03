@@ -21,7 +21,11 @@ export async function GET(_req: NextRequest) {
       org: {
         select: {
           id: true, name: true, type: true, slug: true,
-          orgGroups: { include: { orgGroup: { select: { id: true, name: true } } } },
+          orgGroups: {
+            select: {
+              orgGroup: { select: { id: true, name: true } }
+            }
+          },
         },
       },
       ownershipDeclarations: { orderBy: { signedAt: 'desc' }, take: 1, select: { signedAt: true } },
