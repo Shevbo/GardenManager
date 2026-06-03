@@ -20,7 +20,8 @@ export default async function SignPage({ params }: { params: Promise<{ id: strin
   if (!user?.phoneVerified) {
     return (
       <div style={{
-        minHeight: '100%',
+        flex: 1,
+        overflowY: 'auto',
         background: 'var(--cream)',
         display: 'flex',
         alignItems: 'center',

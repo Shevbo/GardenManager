@@ -99,7 +99,7 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div style={{ minHeight: '100%', background: 'var(--cream)' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: 'var(--cream)' }}>
 
       {/* Topbar */}
       <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--white)', padding: '0 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, zIndex: 10 }}>
