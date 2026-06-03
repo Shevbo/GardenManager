@@ -9,7 +9,12 @@ import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { ExportButton } from './ExportButton'
-import { PdfPreviewSidebar } from '@/components/pdf/PdfPreviewSidebar'
+import dynamic from 'next/dynamic'
+
+const PdfPreviewSidebar = dynamic(
+  () => import('@/components/pdf/PdfPreviewSidebar').then(m => m.PdfPreviewSidebar),
+  { ssr: false }
+)
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],

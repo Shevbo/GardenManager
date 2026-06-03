@@ -4,7 +4,12 @@ import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { AssemblyRoom } from './AssemblyRoom'
 import { computeResults } from '@/lib/assembly-results'
-import { PdfPreviewSidebar } from '@/components/pdf/PdfPreviewSidebar'
+import dynamic from 'next/dynamic'
+
+const PdfPreviewSidebar = dynamic(
+  () => import('@/components/pdf/PdfPreviewSidebar').then(m => m.PdfPreviewSidebar),
+  { ssr: false }
+)
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
