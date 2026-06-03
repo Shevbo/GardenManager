@@ -33,8 +33,26 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ query, count: 6 }),
     })
     if (!r.ok) return NextResponse.json({ suggestions: [] })
-    const data = await r.json() as { suggestions?: Array<{ value: string; data: unknown }> }
-    return NextResponse.json({ suggestions: data.suggestions ?? [] })
+    type DaDataSuggestion = {
+      value: string
+      data: {
+        kladr_id?: string | null
+        fias_id?: string | null
+        fias_level?: string | null
+        qc?: string | null
+      }
+    }
+    const data = await r.json() as { suggestions?: DaDataSuggestion[] }
+    // Pass through minimal subset needed for UI badges (kladr_id, fias_id)
+    const suggestions = (data.suggestions ?? []).map(s => ({
+      value: s.value,
+      data: {
+        kladr_id: s.data?.kladr_id ?? null,
+        fias_id: s.data?.fias_id ?? null,
+        fias_level: s.data?.fias_level ?? null,
+      },
+    }))
+    return NextResponse.json({ suggestions })
   } catch {
     return NextResponse.json({ suggestions: [] })
   }

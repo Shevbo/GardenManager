@@ -1,7 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 
-type Suggestion = { value: string; data: unknown }
+type Suggestion = {
+  value: string
+  data: { kladr_id?: string | null; fias_id?: string | null; fias_level?: string | null }
+}
 
 type Props = {
   value: string
@@ -84,12 +87,22 @@ export function AddressAutocomplete({
               Поиск по КЛАДР недоступен (нет DaData API ключа). Введите адрес вручную.
             </div>
           )}
-          {suggestions.map((s, i) => (
-            <button key={i} type="button" onClick={() => pick(s)}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-cream transition-colors border-b border-border last:border-0">
-              {s.value}
-            </button>
-          ))}
+          {suggestions.map((s, i) => {
+            const fromKladr = !!(s.data?.kladr_id || s.data?.fias_id)
+            return (
+              <button key={i} type="button" onClick={() => pick(s)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-cream transition-colors border-b border-border last:border-0">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="flex-1">{s.value}</span>
+                  {fromKladr && (
+                    <span className="shrink-0 text-[10px] font-medium tracking-wider uppercase text-forest/70 bg-forest/10 px-1.5 py-0.5 rounded">
+                      КЛАДР
+                    </span>
+                  )}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
       {loading && (

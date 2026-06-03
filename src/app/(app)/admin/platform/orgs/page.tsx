@@ -111,8 +111,8 @@ export default function PlatformOrgsPage() {
       ) : (
         <div className="space-y-2">
           {orgs.map(org => (
-            <div key={org.id}
-              className="bg-white border border-border rounded-2xl p-4 flex items-center gap-4">
+            <a key={org.id} href={`/admin/platform/orgs/${org.id}`}
+              className="bg-white border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-forest hover:bg-forest/5 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center shrink-0">
                 <Building2 size={18} className="text-amber" />
               </div>
@@ -123,7 +123,7 @@ export default function PlatformOrgsPage() {
                 </p>
               </div>
               <code className="text-xs text-ink/40 font-mono shrink-0">{org.slug}</code>
-            </div>
+            </a>
           ))}
         </div>
       )}

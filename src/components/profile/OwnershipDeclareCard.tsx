@@ -106,10 +106,10 @@ export function OwnershipDeclareCard({
                 className="mt-1.5 w-full px-3 py-2 border border-border rounded-xl text-sm" />
             </label>
           </div>
-          <details className="text-xs text-ink/60 mb-3">
-            <summary className="cursor-pointer">Текст декларации</summary>
-            <p className="mt-2 p-3 bg-cream rounded-lg leading-relaxed">{declaredText}</p>
-          </details>
+          <div className="mb-3">
+            <p className="text-xs font-medium text-ink/70 uppercase tracking-wider mb-1.5">Текст декларации</p>
+            <p className="text-xs text-ink/70 p-3 bg-cream rounded-lg leading-relaxed">{declaredText}</p>
+          </div>
           {error && <p className="text-sm text-red-500 mb-2">{error}</p>}
           <button onClick={request} disabled={loading || !areaSqm.trim()}
             className="px-4 py-2 bg-forest text-white rounded-xl text-sm font-medium disabled:opacity-50">
