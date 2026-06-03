@@ -35,6 +35,7 @@ export default async function ProfilePage() {
           initialAddress={user.address}
           initialPhone={user.phone}
           phoneVerified={!!user.phoneVerified}
+          initialEmail={user.email}
         />
         {memberships.length > 0 && (
           <section className="mt-6 max-w-2xl mx-auto">

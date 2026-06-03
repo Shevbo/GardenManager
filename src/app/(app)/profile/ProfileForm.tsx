@@ -7,13 +7,64 @@ interface Props {
   initialAddress: string | null
   initialPhone: string | null
   phoneVerified: boolean
+  initialEmail: string | null
 }
 
-export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified }: Props) {
+export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail }: Props) {
   const [name, setName] = useState(initialName ?? '')
   const [address, setAddress] = useState(initialAddress ?? '')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+
+  // Email change state
+  const [currentEmail, setCurrentEmail] = useState(initialEmail ?? '')
+  const [emailStep, setEmailStep] = useState<'view' | 'input' | 'otp'>('view')
+  const [newEmail, setNewEmail] = useState('')
+  const [emailOtp, setEmailOtp] = useState('')
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailError, setEmailError] = useState('')
+  const [emailCountdown, setEmailCountdown] = useState(0)
+
+  useEffect(() => {
+    if (emailCountdown <= 0) return
+    const t = setTimeout(() => setEmailCountdown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [emailCountdown])
+
+  async function handleRequestEmailChange() {
+    setEmailError('')
+    setEmailLoading(true)
+    try {
+      const res = await fetch('/api/profile/change-email/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail }),
+      })
+      const d = await res.json() as { error?: string }
+      if (!res.ok) { setEmailError(d.error ?? 'Ошибка'); return }
+      setEmailStep('otp')
+      setEmailCountdown(60)
+    } finally { setEmailLoading(false) }
+  }
+
+  async function handleVerifyEmailChange(e: React.FormEvent) {
+    e.preventDefault()
+    setEmailError('')
+    setEmailLoading(true)
+    try {
+      const res = await fetch('/api/profile/change-email/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail, otp: emailOtp }),
+      })
+      const d = await res.json() as { error?: string; ok?: boolean }
+      if (!res.ok || !d.ok) { setEmailError(d.error ?? 'Неверный код'); return }
+      setCurrentEmail(newEmail.toLowerCase())
+      setEmailStep('view')
+      setNewEmail('')
+      setEmailOtp('')
+    } finally { setEmailLoading(false) }
+  }
 
   // Phone verification state
   const [phone, setPhone] = useState(initialPhone ?? '')
@@ -146,6 +197,75 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
             {saveMsg && <p style={{ fontSize: '13px', color: 'var(--forest)', margin: 0 }}>{saveMsg}</p>}
           </div>
         </form>
+      </section>
+
+      {/* Email */}
+      <section style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border)', padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '13px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
+            Email
+          </h2>
+        </div>
+
+        {emailStep === 'view' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '14px', color: 'var(--ink)', fontFamily: 'Golos Text, sans-serif' }}>{currentEmail || '—'}</span>
+            <button type="button" onClick={() => { setEmailStep('input'); setNewEmail(currentEmail); setEmailError('') }}
+              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', color: 'var(--ink-soft)', cursor: 'pointer', fontFamily: 'Golos Text, sans-serif' }}>
+              Изменить
+            </button>
+          </div>
+        )}
+
+        {emailStep === 'input' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '12px', color: 'var(--ink-soft)', display: 'block', marginBottom: '6px' }}>Новый email</label>
+              <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                placeholder="new@example.com" autoFocus style={inputStyle} />
+            </div>
+            {emailError && <p style={{ fontSize: '13px', color: '#991B1B', margin: 0 }}>{emailError}</p>}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" onClick={handleRequestEmailChange}
+                disabled={emailLoading || !newEmail.trim() || newEmail.trim().toLowerCase() === currentEmail}
+                style={btnPrimary(emailLoading || !newEmail.trim() || newEmail.trim().toLowerCase() === currentEmail)}>
+                {emailLoading ? 'Отправляем...' : 'Получить код на email'}
+              </button>
+              <button type="button" onClick={() => { setEmailStep('view'); setEmailError('') }}
+                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', fontSize: '14px', cursor: 'pointer', fontFamily: 'Golos Text, sans-serif' }}>
+                Отмена
+              </button>
+            </div>
+          </div>
+        )}
+
+        {emailStep === 'otp' && (
+          <form onSubmit={handleVerifyEmailChange} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>Код отправлен на {newEmail}</p>
+            <input type="text" value={emailOtp}
+              onChange={e => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000" inputMode="numeric" autoFocus
+              style={{ ...inputStyle, fontSize: '24px', letterSpacing: '6px', textAlign: 'center' }} />
+            {emailError && <p style={{ fontSize: '13px', color: '#991B1B', margin: 0 }}>{emailError}</p>}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <button type="submit" disabled={emailLoading} style={btnPrimary(emailLoading)}>
+                {emailLoading ? 'Проверяем...' : 'Подтвердить'}
+              </button>
+              {emailCountdown > 0 ? (
+                <p style={{ fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>Повтор через {emailCountdown} сек.</p>
+              ) : (
+                <button type="button" onClick={handleRequestEmailChange}
+                  style={{ background: 'none', border: 'none', color: 'var(--forest)', fontSize: '13px', cursor: 'pointer', fontFamily: 'Golos Text, sans-serif' }}>
+                  Отправить снова
+                </button>
+              )}
+              <button type="button" onClick={() => { setEmailStep('input'); setEmailOtp(''); setEmailError('') }}
+                style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: '13px', cursor: 'pointer', fontFamily: 'Golos Text, sans-serif' }}>
+                ← Назад
+              </button>
+            </div>
+          </form>
+        )}
       </section>
 
       {/* Phone */}
