@@ -9,12 +9,7 @@ import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { ExportButton } from './ExportButton'
-import dynamic from 'next/dynamic'
-
-const PdfPreviewSidebar = dynamic(
-  () => import('@/components/pdf/PdfPreviewSidebar').then(m => m.PdfPreviewSidebar),
-  { ssr: false }
-)
+import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -150,7 +145,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
 
       </div>
       </div>
-      <PdfPreviewSidebar pdfUrl={`/api/petitions/${id}/export`} />
+      <PdfPreviewSidebarLazy pdfUrl={`/api/petitions/${id}/export`} />
       </div>
     </div>
   )
