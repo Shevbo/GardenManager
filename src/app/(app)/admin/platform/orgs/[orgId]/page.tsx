@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Building2, Home, Plus, Trash2, ChevronDown, ChevronRight, User, BadgeCheck } from 'lucide-react'
+import { Building2, Home, Plus, Trash2, ChevronDown, ChevronRight, User, BadgeCheck, Pencil, Check, X } from 'lucide-react'
 
 type Member = {
   id: string; role: string; isOwner: boolean; areaSqm: number | null; verifiedAt: string | null
@@ -32,6 +32,10 @@ export default function OrgTreePage() {
   const [newBuildingAddress, setNewBuildingAddress] = useState('')
   const [addingApt, setAddingApt] = useState<string | null>(null)
   const [newAptNumber, setNewAptNumber] = useState('')
+  const [editingBldId, setEditingBldId] = useState<string | null>(null)
+  const [editBldAddr, setEditBldAddr] = useState('')
+  const [editingAptId, setEditingAptId] = useState<string | null>(null)
+  const [editApt, setEditApt] = useState<{ number: string; floor: string; entrance: string; areaSqm: string }>({ number: '', floor: '', entrance: '', areaSqm: '' })
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -61,11 +65,24 @@ export default function OrgTreePage() {
     })
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      setError(d.error || 'Не удалось создать здание')
-      return
+      setError(d.error || 'Не удалось создать'); return
     }
     setNewBuildingAddress(''); setAddingBuilding(false)
     await load()
+  }
+
+  async function saveBuilding(id: string) {
+    if (!editBldAddr.trim()) return
+    setError('')
+    const res = await fetch(`/api/admin/platform/buildings/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: editBldAddr.trim() }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'Не удалось сохранить'); return
+    }
+    setEditingBldId(null); await load()
   }
 
   async function deleteBuilding(buildingId: string, address: string) {
@@ -93,6 +110,24 @@ export default function OrgTreePage() {
     }
     setNewAptNumber(''); setAddingApt(null)
     await load()
+  }
+
+  async function saveApartment(id: string) {
+    setError('')
+    const body: { number?: string; floor?: number | null; entrance?: number | null; areaSqm?: number | null } = {}
+    if (editApt.number.trim()) body.number = editApt.number.trim()
+    body.floor = editApt.floor.trim() ? Number(editApt.floor) : null
+    body.entrance = editApt.entrance.trim() ? Number(editApt.entrance) : null
+    body.areaSqm = editApt.areaSqm.trim() ? Number(editApt.areaSqm) : null
+    const res = await fetch(`/api/admin/platform/apartments/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'Не удалось сохранить'); return
+    }
+    setEditingAptId(null); await load()
   }
 
   async function deleteApartment(apartmentId: string, number: string) {
@@ -151,6 +186,7 @@ export default function OrgTreePage() {
         {org.buildings.map(b => {
           const open = openBuildings.has(b.id)
           const memberCount = b.apartments.reduce((s, a) => s + a.memberships.length, 0)
+          const isEditing = editingBldId === b.id
           return (
             <div key={b.id} className="bg-white border border-border rounded-2xl overflow-hidden">
               <div className="flex items-center gap-3 p-4">
@@ -159,20 +195,42 @@ export default function OrgTreePage() {
                   {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                 </button>
                 <Building2 size={18} className="text-amber shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-ink truncate">{b.address}</p>
-                  <p className="text-xs text-ink/50">{b.apartments.length} кв. · {memberCount} участн.</p>
-                </div>
-                <button onClick={() => deleteBuilding(b.id, b.address)} title="Удалить здание"
-                  className="shrink-0 p-1.5 text-red-500/60 hover:text-red-600 hover:bg-red-50 rounded">
-                  <Trash2 size={15} />
-                </button>
+                {isEditing ? (
+                  <>
+                    <input type="text" value={editBldAddr} onChange={e => setEditBldAddr(e.target.value)} autoFocus
+                      className="flex-1 px-3 py-1.5 border border-forest rounded-xl text-sm" />
+                    <button onClick={() => saveBuilding(b.id)} title="Сохранить"
+                      className="shrink-0 p-1.5 text-forest hover:bg-forest/10 rounded">
+                      <Check size={15} />
+                    </button>
+                    <button onClick={() => setEditingBldId(null)} title="Отмена"
+                      className="shrink-0 p-1.5 text-ink/40 hover:bg-cream rounded">
+                      <X size={15} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-ink truncate">{b.address}</p>
+                      <p className="text-xs text-ink/50">{b.apartments.length} кв. · {memberCount} участн.</p>
+                    </div>
+                    <button onClick={() => { setEditingBldId(b.id); setEditBldAddr(b.address); setError('') }} title="Изменить"
+                      className="shrink-0 p-1.5 text-ink/40 hover:text-forest hover:bg-forest/5 rounded">
+                      <Pencil size={15} />
+                    </button>
+                    <button onClick={() => deleteBuilding(b.id, b.address)} title="Удалить"
+                      className="shrink-0 p-1.5 text-ink/40 hover:text-red-500 hover:bg-red-50 rounded">
+                      <Trash2 size={15} />
+                    </button>
+                  </>
+                )}
               </div>
 
               {open && (
                 <div className="border-t border-border bg-cream/40 px-4 py-3 space-y-2">
                   {b.apartments.map(a => {
                     const aOpen = openApartments.has(a.id)
+                    const aEditing = editingAptId === a.id
                     return (
                       <div key={a.id} className="bg-white border border-border rounded-xl">
                         <div className="flex items-center gap-2 px-3 py-2">
@@ -181,21 +239,50 @@ export default function OrgTreePage() {
                             {aOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
                           <Home size={14} className="text-forest shrink-0" />
-                          <div className="flex-1 text-sm">
-                            кв. <strong>{a.number}</strong>
-                            {(a.floor || a.entrance || a.areaSqm) && (
-                              <span className="text-ink/50 ml-2 text-xs">
-                                {a.floor != null && `этаж ${a.floor}`}
-                                {a.entrance != null && ` · подъезд ${a.entrance}`}
-                                {a.areaSqm != null && ` · ${a.areaSqm} м²`}
-                              </span>
-                            )}
-                            <span className="text-ink/40 text-xs ml-2">· {a.memberships.length} участн.</span>
-                          </div>
-                          <button onClick={() => deleteApartment(a.id, a.number)} title="Удалить квартиру"
-                            className="shrink-0 p-1 text-red-500/60 hover:text-red-600 hover:bg-red-50 rounded">
-                            <Trash2 size={13} />
-                          </button>
+                          {aEditing ? (
+                            <>
+                              <input type="text" value={editApt.number} onChange={e => setEditApt({...editApt, number: e.target.value})}
+                                placeholder="№" className="w-16 px-2 py-1 border border-forest rounded text-sm" />
+                              <input type="number" value={editApt.floor} onChange={e => setEditApt({...editApt, floor: e.target.value})}
+                                placeholder="эт." className="w-14 px-2 py-1 border border-border rounded text-xs" />
+                              <input type="number" value={editApt.entrance} onChange={e => setEditApt({...editApt, entrance: e.target.value})}
+                                placeholder="под." className="w-14 px-2 py-1 border border-border rounded text-xs" />
+                              <input type="number" step="0.1" value={editApt.areaSqm} onChange={e => setEditApt({...editApt, areaSqm: e.target.value})}
+                                placeholder="м²" className="w-16 px-2 py-1 border border-border rounded text-xs" />
+                              <button onClick={() => saveApartment(a.id)} className="p-1 text-forest hover:bg-forest/10 rounded"><Check size={13} /></button>
+                              <button onClick={() => setEditingAptId(null)} className="p-1 text-ink/40 hover:bg-cream rounded"><X size={13} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex-1 text-sm">
+                                кв. <strong>{a.number}</strong>
+                                {(a.floor || a.entrance || a.areaSqm) && (
+                                  <span className="text-ink/50 ml-2 text-xs">
+                                    {a.floor != null && `этаж ${a.floor}`}
+                                    {a.entrance != null && ` · подъезд ${a.entrance}`}
+                                    {a.areaSqm != null && ` · ${a.areaSqm} м²`}
+                                  </span>
+                                )}
+                                <span className="text-ink/40 text-xs ml-2">· {a.memberships.length} участн.</span>
+                              </div>
+                              <button onClick={() => {
+                                setEditingAptId(a.id)
+                                setEditApt({
+                                  number: a.number,
+                                  floor: a.floor?.toString() ?? '',
+                                  entrance: a.entrance?.toString() ?? '',
+                                  areaSqm: a.areaSqm?.toString() ?? '',
+                                })
+                                setError('')
+                              }} title="Изменить" className="shrink-0 p-1 text-ink/40 hover:text-forest hover:bg-forest/5 rounded">
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={() => deleteApartment(a.id, a.number)} title="Удалить"
+                                className="shrink-0 p-1 text-ink/40 hover:text-red-500 hover:bg-red-50 rounded">
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
                         </div>
                         {aOpen && (
                           <div className="border-t border-border px-3 py-2 bg-cream/40">
