@@ -9,6 +9,7 @@ import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { ExportButton } from './ExportButton'
+import { PdfPreviewSidebar } from '@/components/pdf/PdfPreviewSidebar'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -72,6 +73,8 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
         isPublic={petition.isPublic}
       />
 
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
 
         <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
@@ -140,6 +143,9 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
           currentUserId={session?.user?.id}
         />
 
+      </div>
+      </div>
+      <PdfPreviewSidebar pdfUrl={`/api/petitions/${id}/export`} />
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { AssemblyRoom } from './AssemblyRoom'
 import { computeResults } from '@/lib/assembly-results'
+import { PdfPreviewSidebar } from '@/components/pdf/PdfPreviewSidebar'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
@@ -39,7 +40,8 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
   const results = assembly.status === 'CLOSED' ? await computeResults(id) : null
 
   return (
-    <div className="overflow-y-auto flex-1">
+    <div className="flex-1 flex min-h-0">
+      <div className="overflow-y-auto flex-1">
       <div className="p-8 max-w-3xl mx-auto">
         <Link href="/assemblies" className="text-sm text-forest hover:underline">
           ← К списку
@@ -70,6 +72,10 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
           results={results}
         />
       </div>
+      </div>
+      {assembly.status === 'CLOSED' && (
+        <PdfPreviewSidebar pdfUrl={`/api/assemblies/${id}/protocol`} />
+      )}
     </div>
   )
 }
