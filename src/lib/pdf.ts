@@ -1,10 +1,16 @@
 import { renderToBuffer } from '@react-pdf/renderer'
 import { createElement } from 'react'
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
+import path from 'path'
+
+const FONT_DIR = path.join(process.cwd(), 'public/fonts')
 
 Font.register({
   family: 'Roboto',
-  src: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf',
+  fonts: [
+    { src: path.join(FONT_DIR, 'Roboto-Regular.ttf'), fontWeight: 'normal' },
+    { src: path.join(FONT_DIR, 'Roboto-Bold.ttf'), fontWeight: 'bold' },
+  ],
 })
 
 const styles = StyleSheet.create({
