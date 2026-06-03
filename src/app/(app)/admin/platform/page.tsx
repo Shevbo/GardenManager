@@ -12,6 +12,7 @@ export default async function PlatformAdminIndex() {
   if (!isAdmin) redirect('/dashboard')
 
   const pendingCount = await prisma.pendingRegistration.count({ where: { status: 'PENDING' } })
+  const membersCount = await prisma.membership.count()
 
   const sections = [
     {
@@ -32,6 +33,13 @@ export default async function PlatformAdminIndex() {
       icon: Users,
       title: 'Группы организаций',
       description: 'Объединение ЖК в группы для межорг-заявлений.',
+    },
+    {
+      href: '/admin/platform/members',
+      icon: Users,
+      title: 'Участники',
+      description: 'Полный справочник участников всех организаций с атрибутами.',
+      badge: membersCount > 0 ? String(membersCount) : undefined,
     },
     {
       href: '/admin/platform/activities',
