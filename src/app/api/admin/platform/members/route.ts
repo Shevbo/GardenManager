@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest) {
 
   const memberships = await prisma.membership.findMany({
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true, phoneVerified: true } },
+      user: { select: { id: true, name: true, email: true, phone: true, phoneVerified: true, _count: { select: { activityMemberships: true } } } },
       apartment: {
         select: {
           id: true, number: true, floor: true, entrance: true, areaSqm: true,
@@ -59,6 +59,7 @@ export async function GET(_req: NextRequest) {
       slug: m.org.slug,
       orgGroups: m.org.orgGroups.map(og => ({ id: og.orgGroup.id, name: og.orgGroup.name })),
     },
+    activitiesCount: m.user._count.activityMemberships,
     lastDeclarationAt: m.ownershipDeclarations[0]?.signedAt.toISOString() ?? null,
     blockReason: computeBlockReason(m),
   }))
