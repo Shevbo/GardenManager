@@ -45,5 +45,7 @@ vi.mock('@/lib/prisma', () => ({
     assemblyVote: makeMock(),
     pendingRegistration: makeMock(),
     ownershipDeclaration: makeMock(),
+    documentTemplate: makeMock(),
+    generatedDocument: makeMock(),
   },
 }))
