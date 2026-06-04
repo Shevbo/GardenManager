@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
+import type { TemplateVariable } from '@/lib/pdf/types'
 
 type PetitionDraft = {
   id: string
@@ -10,6 +11,19 @@ type PetitionDraft = {
   recipient: string | null
   discussionDeadline: string | null
   signingDeadline: string | null
+}
+
+type TemplateItem = {
+  id: string
+  title: string
+  variables: TemplateVariable[]
+  bodyTemplate: string
+}
+
+type ProfileData = {
+  name?: string | null
+  phone?: string | null
+  email?: string | null
 }
 
 function toLocalDatetime(iso: string | null): string {
@@ -42,6 +56,12 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
+const PROFILE_MAP: Record<string, keyof ProfileData> = {
+  applicant_name: 'name',
+  applicant_phone: 'phone',
+  applicant_email: 'email',
+}
+
 export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
   const router = useRouter()
   const [title, setTitle] = useState(petition.title)
@@ -51,6 +71,89 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
   const [signingDeadline, setSigningDeadline] = useState(toLocalDatetime(petition.signingDeadline))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Apply-template panel state
+  const [templatePanelOpen, setTemplatePanelOpen] = useState(false)
+  const [templatePanelLoading, setTemplatePanelLoading] = useState(false)
+  const [templates, setTemplates] = useState<TemplateItem[]>([])
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
+  const [templateError, setTemplateError] = useState('')
+  const [applyLoading, setApplyLoading] = useState(false)
+
+  async function openTemplatePanel() {
+    if (templatePanelOpen) {
+      setTemplatePanelOpen(false)
+      return
+    }
+    setTemplatePanelLoading(true)
+    setTemplateError('')
+    try {
+      const res = await fetch(`/api/petitions/${petition.id}/apply-template`)
+      if (!res.ok) {
+        setTemplateError('Не удалось загрузить шаблоны')
+        setTemplatePanelOpen(true)
+        return
+      }
+      const data = await res.json()
+      setTemplates(data.templates ?? [])
+      setProfile(data.profile ?? null)
+      setSelectedTemplateId('')
+      setFieldValues({})
+      setTemplatePanelOpen(true)
+    } finally {
+      setTemplatePanelLoading(false)
+    }
+  }
+
+  function handleTemplateSelect(templateId: string) {
+    setSelectedTemplateId(templateId)
+    setTemplateError('')
+    const tmpl = templates.find(t => t.id === templateId)
+    if (!tmpl) { setFieldValues({}); return }
+    // Pre-fill profile variables
+    const prefilled: Record<string, string> = {}
+    for (const v of tmpl.variables) {
+      if (v.source === 'profile' && profile) {
+        const field = PROFILE_MAP[v.name]
+        const val = field ? profile[field] : null
+        if (val) prefilled[v.name] = val
+      }
+    }
+    setFieldValues(prefilled)
+  }
+
+  async function applyTemplate() {
+    if (!selectedTemplateId) return
+    setApplyLoading(true)
+    setTemplateError('')
+    try {
+      const res = await fetch(`/api/petitions/${petition.id}/apply-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId: selectedTemplateId, values: fieldValues }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.missing?.length) {
+          setTemplateError('Заполните: ' + (data.missing as string[]).join(', '))
+        } else {
+          setTemplateError(data.error || 'Не удалось применить шаблон')
+        }
+        return
+      }
+      // Update form state from returned petition
+      if (data.title) setTitle(data.title)
+      if (data.recipient !== undefined) setRecipient(data.recipient ?? '')
+      if (data.draftText !== undefined) setDraftText(data.draftText)
+      setTemplatePanelOpen(false)
+    } finally {
+      setApplyLoading(false)
+    }
+  }
+
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId) ?? null
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -109,6 +212,101 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
       <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
         Редактирование черновика
       </h1>
+
+      {/* Apply-template panel */}
+      <div style={{ marginBottom: '16px' }}>
+        <Button type="button" variant="secondary" size="sm" onClick={openTemplatePanel} loading={templatePanelLoading}>
+          {templatePanelOpen ? 'Закрыть шаблон' : 'Применить шаблон'}
+        </Button>
+
+        {templatePanelOpen && (
+          <div style={{ marginTop: '12px', background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--sky, #4EA8DE)', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--cream)' }}>
+              <span style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '9px', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                📋 Применить шаблон коллективного заявления
+              </span>
+            </div>
+
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {templates.length === 0 ? (
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>
+                  Нет доступных шаблонов коллективных заявлений.
+                </p>
+              ) : (
+                <label>
+                  <span style={labelStyle}>Шаблон</span>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={e => handleTemplateSelect(e.target.value)}
+                    style={{ ...inputStyle, cursor: 'pointer' }}
+                  >
+                    <option value="">— выберите шаблон —</option>
+                    {templates.map(t => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {selectedTemplate && selectedTemplate.variables.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {selectedTemplate.variables.map(v => (
+                    <label key={v.name}>
+                      <span style={labelStyle}>
+                        {v.label}
+                        {v.required && <span style={{ color: '#DC2626', marginLeft: '2px' }}>*</span>}
+                        {v.source === 'profile' && (
+                          <span style={{ marginLeft: '6px', fontStyle: 'normal', opacity: 0.6 }}>(из профиля)</span>
+                        )}
+                      </span>
+                      {v.type === 'multiline' ? (
+                        <textarea
+                          value={fieldValues[v.name] ?? ''}
+                          onChange={e => setFieldValues(prev => ({ ...prev, [v.name]: e.target.value }))}
+                          rows={4}
+                          style={{ ...inputStyle, lineHeight: 1.7, resize: 'vertical' }}
+                        />
+                      ) : v.type === 'select' && v.options ? (
+                        <select
+                          value={fieldValues[v.name] ?? ''}
+                          onChange={e => setFieldValues(prev => ({ ...prev, [v.name]: e.target.value }))}
+                          style={{ ...inputStyle, cursor: 'pointer' }}
+                        >
+                          <option value="">— выберите —</option>
+                          {v.options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={v.type === 'date' ? 'date' : 'text'}
+                          value={fieldValues[v.name] ?? ''}
+                          onChange={e => setFieldValues(prev => ({ ...prev, [v.name]: e.target.value }))}
+                          style={inputStyle}
+                        />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {templateError && (
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#DC2626', margin: 0 }}>
+                  {templateError}
+                </p>
+              )}
+
+              {selectedTemplateId && (
+                <div style={{ paddingTop: '4px' }}>
+                  <Button type="button" variant="primary" size="sm" onClick={applyTemplate} loading={applyLoading}>
+                    {applyLoading ? 'Применяем...' : 'Применить'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={save} style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--forest)', overflow: 'hidden', marginBottom: '16px' }}>
         <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--cream)', display: 'flex', alignItems: 'center' }}>

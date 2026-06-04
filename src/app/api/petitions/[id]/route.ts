@@ -48,11 +48,12 @@ export async function PATCH(
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { status, finalText, recipient, discussionDeadline, signingDeadline, title, draftText } =
+  const { status, finalText, recipient, discussionDeadline, signingDeadline, title, draftText, templateId, fieldValues } =
     body as {
       status?: string; finalText?: string; recipient?: string
       discussionDeadline?: string; signingDeadline?: string
       title?: string; draftText?: string
+      templateId?: string | null; fieldValues?: Record<string, string> | null
     }
 
   if (status) {
@@ -71,18 +72,19 @@ export async function PATCH(
     )
   }
 
-  const updated = await prisma.petition.update({
-    where: { id },
-    data: {
-      ...(status && { status: status as PetitionStatus }),
-      ...(title !== undefined && { title: title.trim() }),
-      ...(draftText !== undefined && { draftText: draftText.trim() }),
-      ...(finalText !== undefined && { finalText }),
-      ...(recipient !== undefined && { recipient: recipient?.trim() || null }),
-      ...(discussionDeadline && { discussionDeadline: new Date(discussionDeadline) }),
-      ...(signingDeadline && { signingDeadline: new Date(signingDeadline) }),
-    },
-  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateData: any = {
+    ...(status && { status: status as PetitionStatus }),
+    ...(title !== undefined && { title: title.trim() }),
+    ...(draftText !== undefined && { draftText: draftText.trim() }),
+    ...(finalText !== undefined && { finalText }),
+    ...(recipient !== undefined && { recipient: recipient?.trim() || null }),
+    ...(discussionDeadline && { discussionDeadline: new Date(discussionDeadline) }),
+    ...(signingDeadline && { signingDeadline: new Date(signingDeadline) }),
+    ...(templateId !== undefined && { templateId: templateId ?? null }),
+    ...(fieldValues !== undefined && { fieldValues: fieldValues ?? null }),
+  }
+  const updated = await prisma.petition.update({ where: { id }, data: updateData })
 
   return NextResponse.json(updated)
 }
