@@ -10,6 +10,7 @@ import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { ExportButton } from './ExportButton'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
+import { AppendicesPanel } from '../AppendicesPanel'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -58,6 +59,17 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
     },
   })
   if (!petition) notFound()
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId: session.user.id, orgId: petition.orgId },
+    select: { role: true },
+  })
+  const isAdmin = membership != null &&
+    (['org_admin', 'council_member', 'coalition_admin'] as string[]).includes(membership.role)
+
+  const appendixTemplateIds = Array.isArray(petition.appendixTemplateIds)
+    ? (petition.appendixTemplateIds as unknown[]).filter((x): x is string => typeof x === 'string')
+    : []
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--cream)' }}>
@@ -123,6 +135,12 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
             />
           </div>
         </div>
+
+        <AppendicesPanel
+          petitionId={id}
+          appendixTemplateIds={appendixTemplateIds}
+          isAdmin={isAdmin}
+        />
 
         {/* What's in the document */}
         <div style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', padding: '16px 20px', marginBottom: '16px' }}>

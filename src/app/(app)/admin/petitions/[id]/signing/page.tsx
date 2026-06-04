@@ -12,6 +12,7 @@ import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
+import { AppendicesPanel } from '../AppendicesPanel'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -73,6 +74,14 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
 
   const totalMembers = petition.org.memberships.filter(m => m.isOwner).length
   const signedCount = petition.signatures.length
+
+  const currentMembership = petition.org.memberships.find(m => m.userId === session.user.id)
+  const isAdmin = currentMembership != null &&
+    (['org_admin', 'council_member', 'coalition_admin'] as string[]).includes(currentMembership.role)
+
+  const appendixTemplateIds = Array.isArray(petition.appendixTemplateIds)
+    ? (petition.appendixTemplateIds as unknown[]).filter((x): x is string => typeof x === 'string')
+    : []
 
   async function closePetition() {
     'use server'
@@ -169,6 +178,12 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
             />
           </div>
         </div>
+
+        <AppendicesPanel
+          petitionId={id}
+          appendixTemplateIds={appendixTemplateIds}
+          isAdmin={isAdmin}
+        />
 
         {/* Signatures list */}
         <div style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', padding: '20px', marginBottom: '16px' }}>

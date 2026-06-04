@@ -11,6 +11,7 @@ type PetitionDraft = {
   recipient: string | null
   discussionDeadline: string | null
   signingDeadline: string | null
+  appendixTemplateIds: string[]
 }
 
 type TemplateItem = {
@@ -18,6 +19,12 @@ type TemplateItem = {
   title: string
   variables: TemplateVariable[]
   bodyTemplate: string
+}
+
+type IndividualTemplate = {
+  id: string
+  title: string
+  category: string
 }
 
 type ProfileData = {
@@ -71,6 +78,15 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
   const [signingDeadline, setSigningDeadline] = useState(toLocalDatetime(petition.signingDeadline))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Appendix templates state
+  const [individualTemplates, setIndividualTemplates] = useState<IndividualTemplate[]>([])
+  const [individualTemplatesLoading, setIndividualTemplatesLoading] = useState(false)
+  const [individualTemplatesPanelOpen, setIndividualTemplatesPanelOpen] = useState(false)
+  const [appendixTemplateIds, setAppendixTemplateIds] = useState<string[]>(petition.appendixTemplateIds)
+  const [appendixSaveLoading, setAppendixSaveLoading] = useState(false)
+  const [appendixSaveError, setAppendixSaveError] = useState('')
+  const [appendixSaveSuccess, setAppendixSaveSuccess] = useState(false)
 
   // Apply-template panel state
   const [templatePanelOpen, setTemplatePanelOpen] = useState(false)
@@ -154,6 +170,54 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
   }
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId) ?? null
+
+  async function openIndividualTemplatesPanel() {
+    if (individualTemplatesPanelOpen) {
+      setIndividualTemplatesPanelOpen(false)
+      return
+    }
+    if (individualTemplates.length === 0) {
+      setIndividualTemplatesLoading(true)
+      try {
+        const res = await fetch('/api/documents/templates')
+        if (res.ok) {
+          const data = await res.json() as { items: IndividualTemplate[] }
+          setIndividualTemplates(data.items ?? [])
+        }
+      } finally {
+        setIndividualTemplatesLoading(false)
+      }
+    }
+    setIndividualTemplatesPanelOpen(true)
+  }
+
+  function toggleAppendixTemplate(id: string) {
+    setAppendixTemplateIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+    setAppendixSaveSuccess(false)
+  }
+
+  async function saveAppendixTemplates() {
+    setAppendixSaveLoading(true)
+    setAppendixSaveError('')
+    setAppendixSaveSuccess(false)
+    try {
+      const res = await fetch(`/api/petitions/${petition.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appendixTemplateIds }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string }
+        setAppendixSaveError(d.error ?? 'Не удалось сохранить')
+        return
+      }
+      setAppendixSaveSuccess(true)
+    } finally {
+      setAppendixSaveLoading(false)
+    }
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -303,6 +367,64 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
                   </Button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Appendix templates panel */}
+      <div style={{ marginBottom: '16px' }}>
+        <Button type="button" variant="secondary" size="sm" onClick={openIndividualTemplatesPanel} loading={individualTemplatesLoading}>
+          {individualTemplatesPanelOpen ? 'Закрыть приложения' : 'Настроить приложения участников'}
+        </Button>
+
+        {individualTemplatesPanelOpen && (
+          <div style={{ marginTop: '12px', background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--sky, #4EA8DE)', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--cream)' }}>
+              <span style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '9px', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                Приложения к заявлению (для участников)
+              </span>
+            </div>
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {individualTemplates.length === 0 ? (
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>
+                  Нет доступных индивидуальных шаблонов.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {individualTemplates.map(t => (
+                    <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={appendixTemplateIds.includes(t.id)}
+                        onChange={() => toggleAppendixTemplate(t.id)}
+                        style={{ flexShrink: 0 }}
+                      />
+                      <span style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)' }}>
+                        {t.title}
+                        {t.category && (
+                          <span style={{ marginLeft: '6px', fontSize: '12px', color: 'var(--ink-soft)' }}>({t.category})</span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {appendixSaveError && (
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#DC2626', margin: 0 }}>
+                  {appendixSaveError}
+                </p>
+              )}
+              {appendixSaveSuccess && (
+                <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#065F46', margin: 0 }}>
+                  Сохранено.
+                </p>
+              )}
+              <div style={{ paddingTop: '4px' }}>
+                <Button type="button" variant="primary" size="sm" onClick={saveAppendixTemplates} loading={appendixSaveLoading}>
+                  {appendixSaveLoading ? 'Сохраняем...' : 'Сохранить приложения'}
+                </Button>
+              </div>
             </div>
           </div>
         )}
