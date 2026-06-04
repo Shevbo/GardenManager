@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { isPlatformAdmin } from '@/lib/permissions'
-import { Building2, Users, Tag, FileSignature, Inbox } from 'lucide-react'
+import { Building2, Users, Tag, FileSignature, Inbox, FileText } from 'lucide-react'
 
 export default async function PlatformAdminIndex() {
   const session = await auth()
@@ -46,6 +46,12 @@ export default async function PlatformAdminIndex() {
       icon: Tag,
       title: 'Активности',
       description: 'Интересы участников: автомобилисты, инвалиды и т.д.',
+    },
+    {
+      href: '/admin/platform/document-templates',
+      icon: FileText,
+      title: 'Шаблоны документов',
+      description: 'Справочник официальных бланков: заявления, обращения, иски. Переменные и макеты PDF.',
     },
     {
       href: '/admin/petitions',
