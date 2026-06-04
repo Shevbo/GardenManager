@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma'
 import { generatePetitionPdf } from '@/lib/pdf'
 import { canTransition } from '@/lib/petition-status'
 import type { PetitionStatus } from '@/lib/petition-status'
+import type { ViewerContext } from '@/lib/pdf/types'
+import { isPlatformAdmin } from '@/lib/permissions'
 
 async function buildPetitionPdf(id: string, userId: string) {
   const petition = await prisma.petition.findUnique({
@@ -43,11 +45,14 @@ async function buildPetitionPdf(id: string, userId: string) {
     membership: membershipByUserId.get(sig.userId) ?? null,
   }))
 
+  const isAdmin = (membership?.role != null && ['org_admin', 'council_member', 'coalition_admin'].includes(membership.role)) || await isPlatformAdmin(userId)
+  const viewer: ViewerContext = { viewerUserId: userId, isAdmin }
+
   const pdf = await generatePetitionPdf(
     petition.title,
     petition.finalText,
     signaturesWithMembership,
-    { recipient: petition.recipient, orgName: petition.org.name }
+    { recipient: petition.recipient, orgName: petition.org.name, viewer }
   )
   return { pdf, petition }
 }

@@ -1,5 +1,6 @@
 import { renderToBuffer } from '@react-pdf/renderer'
 import { createElement } from 'react'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { registerPdfFonts } from './fonts'
 import { OfficialLetter, type OfficialLetterProps } from './layouts/official-letter'
 import { PoliceStatement } from './layouts/police-statement'
@@ -21,6 +22,28 @@ export interface RenderInput {
   rows?: RegistryRow[]
   masked?: boolean
   footerSubject?: string
+  hideFooter?: boolean
+}
+
+export async function renderPackagePdf(parts: RenderInput[]): Promise<Buffer> {
+  const buffers: Buffer[] = []
+  for (const p of parts) buffers.push(await renderDocumentPdf(p))
+  const merged = await PDFDocument.create()
+  for (const buf of buffers) {
+    const src = await PDFDocument.load(buf)
+    const pages = await merged.copyPages(src, src.getPageIndices())
+    pages.forEach(pg => merged.addPage(pg))
+  }
+  const font = await merged.embedFont(StandardFonts.Helvetica)
+  const total = merged.getPageCount()
+  merged.getPages().forEach((pg, i) => {
+    const label = `${i + 1} / ${total}`
+    const size = 9
+    const w = font.widthOfTextAtSize(label, size)
+    pg.drawText(label, { x: (pg.getWidth() - w) / 2, y: 18, size, font, color: rgb(0.6, 0.6, 0.6) })
+  })
+  const out = await merged.save()
+  return Buffer.from(out)
 }
 
 export async function renderDocumentPdf(input: RenderInput): Promise<Buffer> {
@@ -37,6 +60,7 @@ export async function renderDocumentPdf(input: RenderInput): Promise<Buffer> {
       rows: input.rows,
       masked: input.masked,
       footerSubject: input.footerSubject,
+      hideFooter: input.hideFooter,
     }
     element = createElement(OfficialLetter, props)
   } else if (input.layoutKey === 'police-statement') {

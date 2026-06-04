@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { generatePetitionPdf } from '@/lib/pdf'
+import type { ViewerContext } from '@/lib/pdf/types'
+import { isPlatformAdmin } from '@/lib/permissions'
 
 export async function GET(
   _req: NextRequest,
@@ -26,11 +28,14 @@ export async function GET(
   const text = petition.finalText ?? petition.draftText
   if (!text) return NextResponse.json({ error: 'No text yet' }, { status: 400 })
 
+  const isAdmin = (membership?.role != null && ['org_admin', 'council_member', 'coalition_admin'].includes(membership.role)) || await isPlatformAdmin(session.user.id)
+  const viewer: ViewerContext = { viewerUserId: session.user.id, isAdmin }
+
   const pdf = await generatePetitionPdf(
     petition.title,
     text,
     [],
-    { recipient: petition.recipient, orgName: petition.org.name }
+    { recipient: petition.recipient, orgName: petition.org.name, viewer }
   )
 
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')

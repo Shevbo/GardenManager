@@ -26,6 +26,7 @@ export interface OfficialLetterProps {
   rows?: RegistryRow[]        // signatory registry (collective)
   masked?: boolean
   footerSubject?: string      // for footer "название · тема · дата"
+  hideFooter?: boolean        // suppress the fixed footer (used in package merges)
 }
 
 export function OfficialLetter(props: OfficialLetterProps) {
@@ -55,13 +56,15 @@ export function OfficialLetter(props: OfficialLetterProps) {
       props.rows && props.rows.length
         ? createElement(RegistrySection, { rows: props.rows, masked: !!props.masked })
         : null,
-      createElement(View, { style: s.footer, fixed: true },
-        createElement(Text, {}, footerLeft),
-        createElement(Text, {
-          render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
-            `${pageNumber} из ${totalPages}`,
-        }),
-      ),
+      !props.hideFooter
+        ? createElement(View, { style: s.footer, fixed: true },
+          createElement(Text, {}, footerLeft),
+          createElement(Text, {
+            render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+              `${pageNumber} из ${totalPages}`,
+          }),
+        )
+        : null,
     ),
   )
 }

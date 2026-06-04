@@ -48,12 +48,13 @@ export async function PATCH(
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { status, finalText, recipient, discussionDeadline, signingDeadline, title, draftText, templateId, fieldValues } =
+  const { status, finalText, recipient, discussionDeadline, signingDeadline, title, draftText, templateId, fieldValues, appendixTemplateIds } =
     body as {
       status?: string; finalText?: string; recipient?: string
       discussionDeadline?: string; signingDeadline?: string
       title?: string; draftText?: string
       templateId?: string | null; fieldValues?: Record<string, string> | null
+      appendixTemplateIds?: string[] | null
     }
 
   if (status) {
@@ -83,6 +84,7 @@ export async function PATCH(
     ...(signingDeadline && { signingDeadline: new Date(signingDeadline) }),
     ...(templateId !== undefined && { templateId: templateId ?? null }),
     ...(fieldValues !== undefined && { fieldValues: fieldValues ?? null }),
+    ...(appendixTemplateIds !== undefined && { appendixTemplateIds: appendixTemplateIds ?? null }),
   }
   const updated = await prisma.petition.update({ where: { id }, data: updateData })
 
