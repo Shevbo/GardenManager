@@ -14,7 +14,7 @@ describe('pdf registry rows', () => {
         user: { name: 'Иван Петров', email: 'ivan@test.ru', phone: '+79991234567' },
         membership: { apartment: { number: '42' }, org: { name: 'ЖК Сад' } },
       },
-    ])
+    ], { viewerUserId: null, isAdmin: true })
     expect(rows[0]).toMatchObject({
       num: 1,
       name: 'Иван Петров',
