@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Vote,
   FileSignature,
+  FileText,
   CheckSquare,
   MessageSquare,
   Settings,
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { href: '/dashboard',         icon: LayoutDashboard, label: 'Главная' },
   { href: '/assemblies',        icon: Vote,            label: 'Собрания' },
   { href: '/admin/petitions',   icon: FileSignature,   label: 'Заявления' },
+  { href: '/documents',         icon: FileText,        label: 'Мои документы' },
   { href: '/activities',        icon: CheckSquare,     label: 'Активности' },
   { href: '/chats',             icon: MessageSquare,   label: 'Чаты' },
 ];
