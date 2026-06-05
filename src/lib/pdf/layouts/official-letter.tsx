@@ -13,7 +13,7 @@ const s = StyleSheet.create({
   title: { fontSize: 15, fontWeight: 'bold', textAlign: 'center', marginVertical: 16 },
   para: { textIndent: 1.5 * CM, marginBottom: 6, textAlign: 'justify' },
   signRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 },
-  footer: { position: 'absolute', bottom: 1.2 * CM, left: 2 * CM, right: 2 * CM, flexDirection: 'row', justifyContent: 'space-between', fontSize: 9, color: '#999' },
+  footer: { position: 'absolute', bottom: 1.2 * CM, left: 2 * CM, right: 2 * CM, fontFamily: 'LiberationSerif', fontSize: 9, color: '#999' },
 })
 
 export interface OfficialLetterProps {
@@ -57,13 +57,7 @@ export function OfficialLetter(props: OfficialLetterProps) {
         ? createElement(RegistrySection, { rows: props.rows, masked: !!props.masked })
         : null,
       !props.hideFooter
-        ? createElement(View, { style: s.footer, fixed: true },
-          createElement(Text, {}, footerLeft),
-          createElement(Text, {
-            render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
-              `${pageNumber} из ${totalPages}`,
-          }),
-        )
+        ? createElement(Text, { style: s.footer, fixed: true }, footerLeft)
         : null,
     ),
   )

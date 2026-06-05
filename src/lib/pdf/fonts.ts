@@ -20,6 +20,8 @@ export function registerPdfFonts() {
     fonts: [
       { src: path.join(FONT_DIR, 'LiberationSerif-Regular.ttf'), fontWeight: 'normal' },
       { src: path.join(FONT_DIR, 'LiberationSerif-Bold.ttf'), fontWeight: 'bold' },
+      { src: path.join(FONT_DIR, 'LiberationSerif-Italic.ttf'), fontWeight: 'normal', fontStyle: 'italic' },
+      { src: path.join(FONT_DIR, 'LiberationSerif-BoldItalic.ttf'), fontWeight: 'bold', fontStyle: 'italic' },
     ],
   })
   // Disable hyphenation (Cyrillic): break by whole words.
