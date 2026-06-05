@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   await params
   const templates = await prisma.documentTemplate.findMany({ where: { scope: 'collective', isActive: true } })
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true, phone: true, email: true } })
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true, phone: true, email: true, address: true } })
   return NextResponse.json({ templates, profile: user })
 }
 
