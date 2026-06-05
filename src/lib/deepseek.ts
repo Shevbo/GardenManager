@@ -1,3 +1,11 @@
+/**
+ * Модели DeepSeek-шлюза.
+ * DOC_MODEL — для работы с текстом документов на сайте (СТРОГО, юр-обработка, ревизия).
+ * CHAT_MODEL — лёгкая модель для болтовни (на будущее).
+ */
+const DOC_MODEL = 'deepseek-v4-pro'
+export const CHAT_MODEL = 'deepseek-v4-flash'
+
 interface RevisionResult {
   revisedText: string
   summary: string
@@ -22,7 +30,7 @@ export async function revisePetitionWithComments(
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: DOC_MODEL,
       messages: [
         {
           role: 'system',
@@ -75,7 +83,7 @@ export async function legalPolishText(draftText: string): Promise<RevisionResult
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: DOC_MODEL,
       messages: [
         {
           role: 'system',
