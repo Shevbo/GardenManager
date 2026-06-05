@@ -211,6 +211,43 @@ async function main() {
   })
   await test('H5 missing required fields → 4xx', async () => { const r = await cAdminA.post('/api/petitions', { title: 'no org' }); assert(r.status >= 400 && r.status < 500, `missing org ${r.status}`) })
 
+  // ===== L. Document header + AI lawyer =====
+  section('L lawyer')
+  await test('L1 created petition has doc number', async () => {
+    const p = await prisma.petition.findUnique({ where: { id: petId }, select: { docYear: true, docSeq: true } })
+    assert(p?.docYear && p?.docSeq, `no doc number assigned (${JSON.stringify(p)})`)
+  })
+  await test('L2 ai-summary (tolerate LLM 502)', async () => {
+    const r = await cAdminA.post(`/api/petitions/${petId}/ai-summary`)
+    assert(r.status === 200 || r.status === 502, `ai-summary ${r.status} ${r.text.slice(0,100)}`)
+    if (r.status === 200) assert((r.json?.aiSummary ?? '').length > 0, 'summary text')
+  })
+  await test('L3 lawyer GET member', async () => {
+    const r = await cOwner1.get(`/api/petitions/${petId}/lawyer`)
+    eq(r.status, 200, `lawyer get ${r.status}`); assert(Array.isArray(r.json?.messages), 'messages'); assert(typeof r.json?.quota === 'number', 'quota')
+  })
+  await test('L4 lawyer GET non-member → 403', async () => { const r = await cOwnerB.get(`/api/petitions/${petId}/lawyer`); eq(r.status, 403, 'lawyer cross-org') })
+  await test('L7 settings GET admin / non-admin 403', async () => {
+    const a = await cAdmin.get('/api/admin/platform/settings'); eq(a.status, 200, 'settings admin')
+    const n = await cOwner1.get('/api/admin/platform/settings'); eq(n.status, 403, 'settings non-admin')
+  })
+  await test('L5 quota=0 blocks non-admin lawyer post', async () => {
+    const set0 = await cAdmin.patch('/api/admin/platform/settings', { key: 'lawyer_quota_per_document', value: '0' }); eq(set0.status, 200, 'set quota 0')
+    const r = await cOwner1.post(`/api/petitions/${petId}/lawyer`, { content: 'Вопрос с нулевой квотой' }); eq(r.status, 403, `quota block ${r.status} ${r.text.slice(0,80)}`)
+    await cAdmin.patch('/api/admin/platform/settings', { key: 'lawyer_quota_per_document', value: '5' })
+  })
+  await test('L5 settings PATCH non-admin → 403', async () => { const r = await cOwner1.patch('/api/admin/platform/settings', { key: 'x', value: 'y' }); eq(r.status, 403, 'settings patch non-admin') })
+  await test('L6 lawyer POST as admin (tolerate LLM 502)', async () => {
+    const r = await cAdminA.post(`/api/petitions/${petId}/lawyer`, { content: 'Кратко: какие нормы ЖК РФ регулируют этот документ?' })
+    assert(r.status === 200 || r.status === 502, `lawyer post ${r.status} ${r.text.slice(0,100)}`)
+  })
+  await test('L8 export thread doc + pdf (member)', async () => {
+    const d = await cAdminA.get(`/api/petitions/${petId}/lawyer/export?format=doc`)
+    assert(d.status === 200 && d.contentType.includes('msword'), `doc export ${d.status} ${d.contentType}`)
+    const p = await cAdminA.get(`/api/petitions/${petId}/lawyer/export?format=pdf`)
+    assert(p.status === 200 && (isPdf(p) || p.contentType.includes('pdf')), `pdf export ${p.status} ${p.contentType}`)
+  })
+
   // ===== report =====
   const pass = results.filter(r => r.ok).length
   const fail = results.filter(r => !r.ok)
