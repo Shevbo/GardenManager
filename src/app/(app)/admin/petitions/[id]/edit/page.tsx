@@ -6,6 +6,9 @@ import { EditPetitionForm } from './EditPetitionForm'
 import { LifecycleStrip } from '@/components/petition/LifecycleStrip'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
+import { DocumentHeader } from '@/components/petition/DocumentHeader'
+import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
+import { STATUS_LABEL } from '@/lib/petition-status-label'
 
 export default async function EditPetitionPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -18,6 +21,7 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
       id: true, title: true, draftText: true, recipient: true,
       status: true, orgId: true, orgGroupId: true, activityId: true,
       discussionDeadline: true, signingDeadline: true,
+      docYear: true, docSeq: true, aiSummary: true,
       template: { select: { title: true } },
     },
   })
@@ -32,6 +36,9 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
   })
   if (!membership) redirect('/dashboard')
 
+  const num = await assignDocNumber(prisma, id)
+  const docNumber = formatDocNumber(num?.year ?? null, num?.seq ?? null)
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--cream)' }}>
       <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--white)', padding: '0 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, zIndex: 10 }}>
@@ -40,6 +47,9 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
       <LifecycleStrip petitionId={id} currentStatus={petition.status as PetitionStatus} isPublic={false} />
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 0' }}>
+            <DocumentHeader petitionId={id} docNumber={docNumber} statusLabel={STATUS_LABEL[petition.status as PetitionStatus]} initialSummary={petition.aiSummary ?? null} />
+          </div>
           <EditPetitionForm petition={{
             ...petition,
             discussionDeadline: petition.discussionDeadline?.toISOString() ?? null,
