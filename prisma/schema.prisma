@@ -200,6 +200,9 @@ model Petition {
   templateId          String?
   fieldValues         Json?
   appendixTemplateIds Json?
+  docYear             Int?
+  docSeq              Int?
+  aiSummary           String?        @db.Text
 
   org               Organization         @relation(fields: [orgId], references: [id])
   createdByUser     User                 @relation("PetitionCreator", fields: [createdBy], references: [id])
@@ -212,11 +215,35 @@ model Petition {
   activity          Activity?            @relation(fields: [activityId], references: [id], onDelete: SetNull)
   template          DocumentTemplate?    @relation(fields: [templateId], references: [id])
   appendixDocuments GeneratedDocument[]
+  lawyerMessages    PetitionLawyerMessage[]
 
   @@index([orgId])
   @@index([orgId, status])
   @@index([orgGroupId])
   @@index([activityId])
+}
+
+model DocumentCounter {
+  year    Int @id
+  lastSeq Int @default(0)
+}
+
+model PetitionLawyerMessage {
+  id         String   @id @default(cuid())
+  petitionId String
+  userId     String?
+  role       String   // "user" | "assistant"
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+
+  @@index([petitionId])
+}
+
+model PlatformSetting {
+  key   String @id
+  value String
 }
 
 model PetitionMaterial {

@@ -11,6 +11,9 @@ import { CommentList } from '@/components/petition/CommentList'
 import type { CommentWithReactions } from '@/components/petition/CommentList'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
+import { DocumentHeader } from '@/components/petition/DocumentHeader'
+import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
+import { STATUS_LABEL } from '@/lib/petition-status-label'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
@@ -62,6 +65,9 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
   })
   if (!petition) notFound()
 
+  const num = await assignDocNumber(prisma, id)
+  const docNumber = formatDocNumber(num?.year ?? null, num?.seq ?? null)
+
   async function startRevision() {
     'use server'
     const sess = await auth()
@@ -105,9 +111,7 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
       <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
 
-        <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
-          {petition.title}
-        </h1>
+        <DocumentHeader petitionId={id} docNumber={docNumber} statusLabel={STATUS_LABEL[petition.status as PetitionStatus]} initialSummary={petition.aiSummary ?? null} />
 
         {/* Admin action block */}
         <div style={{ background: '#FEF3C7', border: '1px solid #D97706', borderRadius: '6px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>

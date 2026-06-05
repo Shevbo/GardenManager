@@ -67,6 +67,110 @@ export async function revisePetitionWithComments(
   return parsed as RevisionResult
 }
 
+export async function summarizeDocument(title: string, body: string): Promise<string> {
+  if (!process.env.DEEPSEEK_API_KEY || !process.env.DEEPSEEK_BASE_URL) {
+    throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
+  }
+
+  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: DOC_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Одним абзацем (2–3 предложения) определи, что это за документ и его суть. Начни строго со слов "Данный документ является". Только на основе предоставленных данных, без выдумок и без воды.',
+        },
+        {
+          role: 'user',
+          content: `Заголовок: ${title}\n\nТекст:\n${body}`,
+        },
+      ],
+      temperature: 0.3,
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`DeepSeek API error: ${err}`)
+  }
+
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> }
+  return data.choices[0].message.content.trim()
+}
+
+export interface LawyerTurn {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  tool_call_id?: string
+  name?: string
+}
+
+export async function lawyerChat(
+  messages: LawyerTurn[],
+  tools?: object[]
+): Promise<{ content: string; toolCalls?: { id: string; name: string; args: unknown }[] }> {
+  if (!process.env.DEEPSEEK_API_KEY || !process.env.DEEPSEEK_BASE_URL) {
+    throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
+  }
+
+  const body: Record<string, unknown> = {
+    model: DOC_MODEL,
+    messages,
+    temperature: 0.3,
+  }
+
+  if (tools && tools.length > 0) {
+    body.tools = tools
+    body.tool_choice = 'auto'
+  }
+
+  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`DeepSeek API error: ${err}`)
+  }
+
+  const data = await response.json() as {
+    choices: Array<{
+      message: {
+        content: string | null
+        tool_calls?: Array<{
+          id: string
+          function: { name: string; arguments: string }
+        }>
+      }
+    }>
+  }
+
+  const msg = data.choices[0].message
+  if (msg.tool_calls && msg.tool_calls.length > 0) {
+    return {
+      content: '',
+      toolCalls: msg.tool_calls.map(tc => ({
+        id: tc.id,
+        name: tc.function.name,
+        args: JSON.parse(tc.function.arguments),
+      })),
+    }
+  }
+
+  return { content: msg.content ?? '' }
+}
+
 /**
  * Юридическая обработка текущего текста заявления (без комментариев) —
  * для кнопки «Обработать юристом ИИ» на этапе черновика.

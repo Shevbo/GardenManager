@@ -217,10 +217,6 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
 
   return (
     <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 80px' }}>
-      <h1 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: 'var(--ink)', margin: '0 0 20px', letterSpacing: '-0.02em' }}>
-        Редактирование черновика
-      </h1>
-
       {/* Text-assist buttons */}
       <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
         <Button type="button" variant="secondary" size="sm" onClick={openTpl} loading={tplLoading}>
