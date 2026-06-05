@@ -246,6 +246,13 @@ async function main() {
       assert(c.startsWith('🔎'), `web-search not active (no 🔎 marker): ${c.slice(0,60)}`)
     }
   })
+  await test('L9 apply-recommendation guards (non-draft → 400, non-member → 403)', async () => {
+    // petId is CLOSED/EXPORTED by now → applying to text is blocked
+    const r = await cAdminA.post(`/api/petitions/${petId}/lawyer/apply`, { messageId: 'x' })
+    assert(r.status === 400 || r.status === 404, `apply on non-draft ${r.status} ${r.text.slice(0,80)}`)
+    const nm = await cOwnerB.post(`/api/petitions/${petId}/lawyer/apply`, { messageId: 'x' })
+    eq(nm.status, 403, 'apply non-member')
+  })
   await test('L8 export thread doc + pdf (member)', async () => {
     const d = await cAdminA.get(`/api/petitions/${petId}/lawyer/export?format=doc`)
     assert(d.status === 200 && d.contentType.includes('msword'), `doc export ${d.status} ${d.contentType}`)
