@@ -79,10 +79,6 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
   const isAdmin = currentMembership != null &&
     (['org_admin', 'council_member', 'coalition_admin'] as string[]).includes(currentMembership.role)
 
-  const appendixTemplateIds = Array.isArray(petition.appendixTemplateIds)
-    ? (petition.appendixTemplateIds as unknown[]).filter((x): x is string => typeof x === 'string')
-    : []
-
   async function closePetition() {
     'use server'
     const session = await auth()
@@ -181,7 +177,6 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
 
         <AppendicesPanel
           petitionId={id}
-          appendixTemplateIds={appendixTemplateIds}
           isAdmin={isAdmin}
         />
 

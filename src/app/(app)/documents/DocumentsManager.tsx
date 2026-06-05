@@ -37,6 +37,12 @@ interface GeneratedDocument {
   }
 }
 
+interface PetitionItem {
+  id: string
+  title: string
+  status: string
+}
+
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
@@ -401,16 +407,170 @@ function DocumentEditor({
   )
 }
 
+// ── Petition Attach Control ────────────────────────────────────────────────────
+
+function PetitionAttachControl({
+  doc,
+  petitions,
+  onUpdated,
+}: {
+  doc: GeneratedDocument
+  petitions: PetitionItem[]
+  onUpdated: (updated: GeneratedDocument) => void
+}) {
+  const [selectedPetitionId, setSelectedPetitionId] = useState('')
+  const [attaching, setAttaching] = useState(false)
+  const [attachError, setAttachError] = useState('')
+
+  const attachedPetition = doc.petitionId
+    ? petitions.find(p => p.id === doc.petitionId) ?? null
+    : null
+
+  async function handleAttach() {
+    if (!selectedPetitionId) return
+    setAttaching(true)
+    setAttachError('')
+    try {
+      const res = await fetch(`/api/documents/${doc.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petitionId: selectedPetitionId }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string }
+        setAttachError(d.error ?? 'Ошибка прикрепления')
+        return
+      }
+      const updated = await res.json() as GeneratedDocument
+      onUpdated(updated)
+      setSelectedPetitionId('')
+    } finally {
+      setAttaching(false)
+    }
+  }
+
+  async function handleDetach() {
+    setAttaching(true)
+    setAttachError('')
+    try {
+      const res = await fetch(`/api/documents/${doc.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petitionId: null }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string }
+        setAttachError(d.error ?? 'Ошибка открепления')
+        return
+      }
+      const updated = await res.json() as GeneratedDocument
+      onUpdated(updated)
+    } finally {
+      setAttaching(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        borderTop: '1px solid var(--border)',
+        padding: '10px 20px',
+        background: 'var(--cream)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      <span style={{
+        fontFamily: 'Unbounded, sans-serif',
+        fontSize: '8px',
+        fontWeight: 700,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        color: 'var(--ink-soft)',
+      }}>
+        Заявление
+      </span>
+
+      {attachedPetition ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink)' }}>
+            Прикреплено к: <strong>{attachedPetition.title}</strong>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={attaching}
+            onClick={handleDetach}
+            style={{ fontSize: '11px' }}
+          >
+            Открепить
+          </Button>
+        </div>
+      ) : petitions.length === 0 ? (
+        <span style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)' }}>
+          Нет доступных заявлений для прикрепления.
+        </span>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <select
+            value={selectedPetitionId}
+            onChange={e => setSelectedPetitionId(e.target.value)}
+            style={{
+              fontFamily: 'Golos Text, sans-serif',
+              fontSize: '12px',
+              color: 'var(--ink)',
+              padding: '5px 8px',
+              border: '1px solid var(--border)',
+              borderRadius: '5px',
+              background: 'var(--white)',
+              cursor: 'pointer',
+              minWidth: '180px',
+              maxWidth: '280px',
+            }}
+          >
+            <option value="">— выберите заявление —</option>
+            {petitions.map(p => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!selectedPetitionId || attaching}
+            loading={attaching}
+            onClick={handleAttach}
+            style={{ fontSize: '11px' }}
+          >
+            Привязать
+          </Button>
+        </div>
+      )}
+
+      {attachError && (
+        <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: '#DC2626', margin: 0 }}>
+          {attachError}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Document Card (list item) ─────────────────────────────────────────────────
 
 function DocumentCard({
   doc,
+  petitions,
   onOpen,
   onDeleted,
+  onUpdated,
 }: {
   doc: GeneratedDocument
+  petitions: PetitionItem[]
   onOpen: () => void
   onDeleted: () => void
+  onUpdated: (updated: GeneratedDocument) => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -483,6 +643,12 @@ function DocumentCard({
           </div>
         </div>
       </div>
+
+      <PetitionAttachControl
+        doc={doc}
+        petitions={petitions}
+        onUpdated={onUpdated}
+      />
     </div>
   )
 }
@@ -492,6 +658,7 @@ function DocumentCard({
 export function DocumentsManager() {
   const [docs, setDocs] = useState<GeneratedDocument[]>([])
   const [templates, setTemplates] = useState<DocumentTemplate[]>([])
+  const [petitions, setPetitions] = useState<PetitionItem[]>([])
   const [loadingDocs, setLoadingDocs] = useState(true)
   const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [showCreatePanel, setShowCreatePanel] = useState(false)
@@ -511,7 +678,7 @@ export function DocumentsManager() {
     }
   }, [templates.length])
 
-  // Load docs on mount
+  // Load docs and petitions on mount
   useEffect(() => {
     let cancelled = false
     async function fetchDocs() {
@@ -526,7 +693,19 @@ export function DocumentsManager() {
         if (!cancelled) setLoadingDocs(false)
       }
     }
+    async function fetchPetitions() {
+      try {
+        const res = await fetch('/api/documents/petitions')
+        if (res.ok && !cancelled) {
+          const data = await res.json() as { items: PetitionItem[] }
+          setPetitions(data.items ?? [])
+        }
+      } catch {
+        // petitions list is best-effort; silently ignore errors
+      }
+    }
     void fetchDocs()
+    void fetchPetitions()
     return () => { cancelled = true }
   }, [])
 
@@ -559,6 +738,10 @@ export function DocumentsManager() {
   function handleDocDeleted(id: string) {
     setDocs(prev => prev.filter(d => d.id !== id))
     if (openDocId === id) setOpenDocId(null)
+  }
+
+  function handleDocUpdated(updated: GeneratedDocument) {
+    setDocs(prev => prev.map(d => d.id === updated.id ? updated : d))
   }
 
   const openDoc = openDocId ? docs.find(d => d.id === openDocId) ?? null : null
@@ -667,12 +850,14 @@ export function DocumentsManager() {
                 <DocumentCard
                   key={doc.id}
                   doc={doc}
+                  petitions={petitions}
                   onOpen={async () => {
                     // Ensure templates are loaded before opening editor
                     await loadTemplates()
                     setOpenDocId(doc.id)
                   }}
                   onDeleted={() => handleDocDeleted(doc.id)}
+                  onUpdated={handleDocUpdated}
                 />
               ))
             )}

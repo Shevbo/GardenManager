@@ -67,10 +67,6 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
   const isAdmin = membership != null &&
     (['org_admin', 'council_member', 'coalition_admin'] as string[]).includes(membership.role)
 
-  const appendixTemplateIds = Array.isArray(petition.appendixTemplateIds)
-    ? (petition.appendixTemplateIds as unknown[]).filter((x): x is string => typeof x === 'string')
-    : []
-
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--cream)' }}>
 
@@ -138,7 +134,6 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
 
         <AppendicesPanel
           petitionId={id}
-          appendixTemplateIds={appendixTemplateIds}
           isAdmin={isAdmin}
         />
 
