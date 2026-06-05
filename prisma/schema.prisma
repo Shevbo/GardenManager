@@ -118,6 +118,7 @@ model User {
   pendingRegistration   PendingRegistration?
   ownershipDeclarations OwnershipDeclaration[]
   generatedDocuments    GeneratedDocument[]
+  propertyOwnerships    PropertyOwnership[]
 }
 
 model Account {
@@ -508,6 +509,26 @@ model DocumentTemplate {
 
   generatedDocuments GeneratedDocument[]
   petitions          Petition[]
+}
+
+model PropertyOwnership {
+  id                String    @id @default(cuid())
+  userId            String
+  address           String
+  addressNormalized String?
+  apartmentNumber   String?
+  areaSqm           Float?
+  sharePercent      Float?
+  orgId             String?
+  orgName           String?
+  buildingId        String?
+  declaredText      String?   @db.Text
+  signedAt          DateTime?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model GeneratedDocument {

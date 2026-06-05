@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { ProfileForm } from './ProfileForm'
 import { OwnershipDeclareCard } from '@/components/profile/OwnershipDeclareCard'
+import { PropertyOwnershipSection } from '@/components/profile/PropertyOwnershipSection'
 import { LogoutButton } from '@/components/auth/LogoutButton'
 
 export default async function ProfilePage() {
@@ -37,10 +38,10 @@ export default async function ProfilePage() {
           phoneVerified={!!user.phoneVerified}
           initialEmail={user.email}
         />
-        {memberships.length > 0 && (
-          <section className="mt-6 max-w-2xl mx-auto">
-            <h2 className="font-display text-lg font-bold text-ink mb-3">Подтверждение собственности</h2>
-            <div className="space-y-3">
+        <section className="mt-6 max-w-2xl mx-auto">
+          <h2 className="font-display text-lg font-bold text-ink mb-3">Подтверждение собственности</h2>
+          {memberships.length > 0 && (
+            <div className="space-y-3 mb-3">
               {memberships.map(m => (
                 <OwnershipDeclareCard
                   key={m.id}
@@ -53,8 +54,9 @@ export default async function ProfilePage() {
                 />
               ))}
             </div>
-          </section>
-        )}
+          )}
+          <PropertyOwnershipSection />
+        </section>
       </div>
     </div>
   )
