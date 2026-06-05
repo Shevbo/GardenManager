@@ -12,5 +12,7 @@ export async function getSetting(
 }
 
 export async function getLawyerQuota(prisma: PrismaClient): Promise<number> {
-  return parseInt(await getSetting(prisma, LAWYER_QUOTA_KEY, '5'), 10) || 5
+  const n = parseInt(await getSetting(prisma, LAWYER_QUOTA_KEY, '5'), 10)
+  // Allow 0 (means non-admins cannot ask). Fall back to 5 only when not a valid non-negative number.
+  return Number.isFinite(n) && n >= 0 ? n : 5
 }
