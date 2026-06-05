@@ -25,13 +25,14 @@ export interface OfficialLetterProps {
   date?: string | null
   rows?: RegistryRow[]        // signatory registry (collective)
   masked?: boolean
-  footerSubject?: string      // for footer "название · тема · дата"
+  footerSubject?: string      // for footer "№ · название · тема · дата"
+  docNumber?: string | null   // 2026-NNN — shown first in the footer colophon
   hideFooter?: boolean        // suppress the fixed footer (used in package merges)
 }
 
 export function OfficialLetter(props: OfficialLetterProps) {
   const paragraphs = props.bodyText.split(/\n+/).filter(Boolean)
-  const footerLeft = [props.title, props.footerSubject, props.date].filter(Boolean).join(' · ')
+  const footerLeft = [props.docNumber, props.title, props.footerSubject, props.date].filter(Boolean).join(' · ')
   return createElement(Document, {},
     createElement(Page, { size: 'A4', style: s.page },
       createElement(View, { style: s.header },

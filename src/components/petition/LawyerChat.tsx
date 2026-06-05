@@ -55,6 +55,21 @@ export function LawyerChat({ petitionId }: { petitionId: string }) {
     } catch { setError('Ошибка сети') } finally { setSending(false) }
   }
 
+  const [applyingId, setApplyingId] = useState<string | null>(null)
+  const [applyError, setApplyError] = useState('')
+
+  async function applyToDoc(messageId: string) {
+    if (applyingId) return
+    setApplyingId(messageId); setApplyError('')
+    try {
+      const r = await fetch(`/api/petitions/${petitionId}/lawyer/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messageId }),
+      })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); setApplyError(d.error || 'Не удалось применить'); return }
+      window.location.reload() // reflect updated draftText in the page/edit form
+    } finally { setApplyingId(null) }
+  }
+
   function exportThread(format: 'pdf' | 'doc') {
     window.open(`/api/petitions/${petitionId}/lawyer/export?format=${format}`, '_blank')
   }
@@ -79,10 +94,18 @@ export function LawyerChat({ petitionId }: { petitionId: string }) {
                   <div style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: '4px' }}>{ai ? 'Юрист ИИ' : (m.authorName ?? 'Участник')}</div>
                   <div style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', lineHeight: 1.6, color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{m.content}</div>
                   {ai && (
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                      <button onClick={() => exportMsg(m.id, 'pdf')} style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '11px', color: 'var(--forest)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>PDF</button>
-                      <button onClick={() => exportMsg(m.id, 'doc')} style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '11px', color: 'var(--forest)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>.doc</button>
-                    </div>
+                    <>
+                      <div style={{ marginTop: '6px' }}>
+                        <button onClick={() => applyToDoc(m.id)} disabled={applyingId !== null}
+                          style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', fontWeight: 600, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                          {applyingId === m.id ? 'Применяю к тексту…' : '✓ Согласен — применить к тексту документа'}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        <button onClick={() => exportMsg(m.id, 'pdf')} style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '11px', color: 'var(--forest)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>PDF</button>
+                        <button onClick={() => exportMsg(m.id, 'doc')} style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '11px', color: 'var(--forest)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>.doc</button>
+                      </div>
+                    </>
                   )}
                 </div>
               )
@@ -91,6 +114,7 @@ export function LawyerChat({ petitionId }: { petitionId: string }) {
           </div>
 
           {error && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#DC2626', margin: '0 0 8px' }}>{error}</p>}
+          {applyError && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#DC2626', margin: '0 0 8px' }}>{applyError}</p>}
           {reached ? (
             <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>Достигнут лимит вопросов юристу ИИ для этого документа ({quota}). Обратитесь к администратору организации.</p>
           ) : (

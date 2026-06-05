@@ -221,3 +221,40 @@ export async function legalPolishText(draftText: string): Promise<RevisionResult
   }
   return parsed as RevisionResult
 }
+
+/**
+ * Внедряет рекомендацию юриста ИИ в текст документа («Согласен — применить к тексту»).
+ * Возвращает обновлённый текст документа.
+ */
+export async function applyRecommendation(documentText: string, recommendation: string): Promise<string> {
+  if (!process.env.DEEPSEEK_API_KEY || !process.env.DEEPSEEK_BASE_URL) {
+    throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
+  }
+  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` },
+    body: JSON.stringify({
+      model: DOC_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: `Ты — юридический редактор. Тебе дан текст документа и рекомендация юриста.
+Внедри рекомендацию в текст документа: аккуратно перепиши/дополни так, чтобы рекомендация была учтена,
+сохрани официальный тон, структуру и все конкретные данные (адреса, ФИО, даты, суммы, номера норм).
+НЕ выдумывай новых фактов сверх рекомендации и исходного текста.
+Верни JSON: {"revisedText": "обновлённый текст документа", "summary": "что изменено"}`,
+        },
+        { role: 'user', content: `ТЕКСТ ДОКУМЕНТА:\n${documentText}\n\nРЕКОМЕНДАЦИЯ ЮРИСТА:\n${recommendation}` },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    }),
+  })
+  if (!response.ok) throw new Error(`DeepSeek API error: ${await response.text()}`)
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> }
+  const parsed: unknown = JSON.parse(data.choices[0].message.content)
+  if (typeof parsed !== 'object' || parsed === null || typeof (parsed as { revisedText?: unknown }).revisedText !== 'string') {
+    throw new Error('DeepSeek returned unexpected response shape')
+  }
+  return (parsed as { revisedText: string }).revisedText
+}

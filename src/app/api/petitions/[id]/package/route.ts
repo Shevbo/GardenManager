@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { buildRegistryRows, renderPackagePdf } from '@/lib/pdf/index'
+import { formatDocNumber } from '@/lib/doc-number'
 import { isPlatformAdmin } from '@/lib/permissions'
 import type { LayoutKey } from '@/lib/pdf/types'
 
@@ -79,6 +80,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       masked: false,
       hideFooter: true,
       footerSubject: 'обращение',
+      docNumber: formatDocNumber(petition.docYear, petition.docSeq),
     },
     ...appendices.map(doc => ({
       layoutKey: doc.template.layoutKey as LayoutKey,

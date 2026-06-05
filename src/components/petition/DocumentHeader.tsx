@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { LawyerChat } from './LawyerChat'
 
 /** Document header shown atop every petition page: number + status + AI summary + lawyer chat. */
@@ -21,6 +21,13 @@ export function DocumentHeader({ petitionId, docNumber, statusLabel, initialSumm
     } finally { setLoading(false) }
   }
 
+  // Auto-generate the description on first view if it isn't cached yet, so we never
+  // show a misleading "not generated" message for an already-edited document.
+  useEffect(() => {
+    if (!initialSummary) void refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div style={{ marginBottom: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -34,7 +41,7 @@ export function DocumentHeader({ petitionId, docNumber, statusLabel, initialSumm
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '14px' }}>
         <p style={{ flex: 1, fontFamily: 'Golos Text, sans-serif', fontSize: '13px', lineHeight: 1.6, color: 'var(--ink-soft)', fontStyle: summary ? 'italic' : 'normal', margin: 0 }}>
-          {summary ?? 'Описание документа от юриста ИИ не сформировано.'}
+          {summary ?? (loading ? 'Готовлю описание документа…' : '—')}
         </p>
         <button onClick={refresh} disabled={loading} title="Обновить описание от юриста ИИ"
           style={{ flexShrink: 0, fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--forest)', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}>

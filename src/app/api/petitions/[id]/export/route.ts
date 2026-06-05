@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { generatePetitionPdf } from '@/lib/pdf'
+import { formatDocNumber } from '@/lib/doc-number'
 import { canTransition } from '@/lib/petition-status'
 import type { PetitionStatus } from '@/lib/petition-status'
 import type { ViewerContext } from '@/lib/pdf/types'
@@ -52,7 +53,7 @@ async function buildPetitionPdf(id: string, userId: string) {
     petition.title,
     petition.finalText,
     signaturesWithMembership,
-    { recipient: petition.recipient, orgName: petition.org.name, viewer }
+    { recipient: petition.recipient, orgName: petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq) }
   )
   return { pdf, petition }
 }

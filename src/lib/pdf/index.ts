@@ -22,6 +22,7 @@ export interface RenderInput {
   rows?: RegistryRow[]
   masked?: boolean
   footerSubject?: string
+  docNumber?: string | null
   hideFooter?: boolean
 }
 
@@ -60,6 +61,7 @@ export async function renderDocumentPdf(input: RenderInput): Promise<Buffer> {
       rows: input.rows,
       masked: input.masked,
       footerSubject: input.footerSubject,
+      docNumber: input.docNumber,
       hideFooter: input.hideFooter,
     }
     element = createElement(OfficialLetter, props)

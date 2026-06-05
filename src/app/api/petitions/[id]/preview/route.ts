@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { generatePetitionPdf } from '@/lib/pdf'
+import { formatDocNumber } from '@/lib/doc-number'
 import type { ViewerContext } from '@/lib/pdf/types'
 import { isPlatformAdmin } from '@/lib/permissions'
 
@@ -35,7 +36,7 @@ export async function GET(
     petition.title,
     text,
     [],
-    { recipient: petition.recipient, orgName: petition.org.name, viewer }
+    { recipient: petition.recipient, orgName: petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq) }
   )
 
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')

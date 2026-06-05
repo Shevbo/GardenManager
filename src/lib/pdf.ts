@@ -17,7 +17,7 @@ export async function generatePetitionPdf(
   title: string,
   finalText: string,
   signatures: SignatureInput[],
-  opts?: { recipient?: string | null; orgName?: string | null; viewer?: ViewerContext },
+  opts?: { recipient?: string | null; orgName?: string | null; viewer?: ViewerContext; docNumber?: string | null },
 ): Promise<Buffer> {
   const viewer = opts?.viewer ?? { viewerUserId: null, isAdmin: true }
   const rows = buildRegistryRows(signatures, viewer)
@@ -31,6 +31,7 @@ export async function generatePetitionPdf(
     rows,
     masked: !viewer.isAdmin,
     footerSubject: 'обращение',
+    docNumber: opts?.docNumber ?? null,
   })
 }
 
