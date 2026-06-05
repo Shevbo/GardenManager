@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { isPlatformAdmin } from '@/lib/permissions'
 import { lawyerChat } from '@/lib/deepseek'
 import { buildLawyerContext } from '@/lib/lawyer'
+import { webSearch, webSearchEnabled } from '@/lib/lawyer-tools'
 import { getLawyerQuota } from '@/lib/settings'
 import { formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
@@ -150,10 +151,20 @@ export async function POST(
     allMessages.map(m => ({ role: m.role, content: m.content }))
   )
 
+  // Web search (federation Lineman proxy) — injects fresh results when enabled.
+  let usedSearch = false
+  if (webSearchEnabled()) {
+    const results = await webSearch(trimmed)
+    if (results) {
+      usedSearch = true
+      context.push({ role: 'system', content: 'Актуальные результаты веб-поиска по вопросу (используй, если релевантно, со ссылками на источники):\n' + results })
+    }
+  }
+
   let assistantContent: string
   try {
     const result = await lawyerChat(context)
-    assistantContent = result.content
+    assistantContent = (usedSearch ? '🔎 ' : '') + result.content
   } catch (err) {
     const error = err instanceof Error ? err.message : 'LLM error'
     return NextResponse.json({ error }, { status: 502 })
