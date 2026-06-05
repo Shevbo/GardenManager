@@ -2,7 +2,8 @@
 import { encode } from 'next-auth/jwt'
 import { BASE } from './env'
 
-const COOKIE = 'authjs.session-token'
+// App runs with secure cookies (NEXTAUTH_URL is https) — name AND salt must be the secure variant.
+const COOKIE = '__Secure-authjs.session-token'
 
 export async function sessionCookie(user: { id: string; email?: string | null }, secret: string): Promise<string> {
   const token = await encode({
