@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { requirePhoneVerified } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
+import { assignDocNumber } from '@/lib/doc-number'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -92,5 +93,8 @@ export async function POST(req: NextRequest) {
     include: { materials: true },
   })
 
-  return NextResponse.json(petition, { status: 201 })
+  // Assign continuous document number (2026-NNN)
+  const num = await assignDocNumber(prisma, petition.id)
+
+  return NextResponse.json({ ...petition, docYear: num?.year ?? null, docSeq: num?.seq ?? null }, { status: 201 })
 }
