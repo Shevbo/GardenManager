@@ -15,6 +15,16 @@ async function test(name: string, fn: () => Promise<void>) {
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg) }
 function eq(a: any, b: any, msg: string) { if (a !== b) throw new Error(`${msg} (got ${JSON.stringify(a)}, want ${JSON.stringify(b)})`) }
 function isPdf(r: { text: string; contentType: string }) { return r.contentType.includes('pdf') && r.text.startsWith('%PDF') }
+/** Fill every variable of a template with a valid generic value (covers all required). */
+function fillVars(tpl: { variables: any[] }): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const v of tpl.variables ?? []) {
+    if (v.type === 'date') out[v.name] = '2026-06-05'
+    else if (v.type === 'select' && v.options?.length) out[v.name] = v.options[0]
+    else out[v.name] = `QA ${v.label ?? v.name}`
+  }
+  return out
+}
 
 async function main() {
   const { prisma, secret } = await initEnv()
@@ -50,12 +60,17 @@ async function main() {
   section('D templates')
   let collectiveTplId = ''
   let individualTplId = ''
+  let collectiveTpl: any = null
+  let individualTpl: any = null
   await test('D1 admin lists document templates', async () => {
     const r = await cAdmin.get('/api/admin/platform/document-templates'); eq(r.status, 200, 'list')
     const items = r.json?.items ?? []
     assert(items.length >= 15, `expected >=15 templates, got ${items.length}`)
-    collectiveTplId = items.find((t: any) => t.scope === 'collective')?.id ?? ''
-    individualTplId = items.find((t: any) => t.scope === 'individual')?.id ?? ''
+    const collectives = items.filter((t: any) => t.scope === 'collective')
+    collectiveTpl = collectives.find((t: any) => /свободн/i.test(t.title)) ?? collectives[0]
+    individualTpl = items.find((t: any) => t.scope === 'individual')
+    collectiveTplId = collectiveTpl?.id ?? ''
+    individualTplId = individualTpl?.id ?? ''
     assert(collectiveTplId && individualTplId, 'need both scopes')
   })
   await test('D1 non-admin → 403 templates', async () => { const r = await cOwner1.get('/api/admin/platform/document-templates'); eq(r.status, 403, 'owner templates') })
@@ -73,8 +88,8 @@ async function main() {
     eq(r.status, 400, 'missing fields'); assert(Array.isArray(r.json?.missing), 'missing list')
   })
   await test('B2 apply-template ok', async () => {
-    const r = await cAdminA.post(`/api/petitions/${petId}/apply-template`, { templateId: collectiveTplId, values: { recipient: 'Главе управы', from_line: 'Жители QA', body: 'Текст обращения QA' } })
-    eq(r.status, 200, `apply (${r.status} ${r.text.slice(0, 120)})`); assert((r.json?.draftText ?? '').length > 0, 'draftText filled')
+    const r = await cAdminA.post(`/api/petitions/${petId}/apply-template`, { templateId: collectiveTplId, values: fillVars(collectiveTpl) })
+    eq(r.status, 200, `apply (${r.status} ${r.text.slice(0, 160)})`); assert((r.json?.draftText ?? '').length > 0, 'draftText filled')
   })
   await test('B3 legal-polish (tolerate LLM 502)', async () => {
     const r = await cAdminA.post(`/api/petitions/${petId}/legal-polish`, { text: 'Просим отремонтировать двор.' })
@@ -122,7 +137,7 @@ async function main() {
     const fv = r.json?.fieldValues ?? {}
     assert(Object.keys(fv).length >= 0, 'fieldValues present')
   })
-  await test('C3 edit fieldValues', async () => { const r = await cOwner1.patch(`/api/documents/${docId}`, { fieldValues: { applicant_name: 'QA Owner', statement_body: 'Прошу проверить.', sign_date: '05.06.2026', applicant_address: 'QA addr', applicant_phone: '+79990000', addressee_org: 'ОМВД' } }); eq(r.status, 200, 'edit doc') })
+  await test('C3 edit fieldValues', async () => { const r = await cOwner1.patch(`/api/documents/${docId}`, { fieldValues: fillVars(individualTpl) }); eq(r.status, 200, 'edit doc') })
   await test('C4 sign document', async () => { const r = await cOwner1.post(`/api/documents/${docId}/sign`, { legalConsent: true }); assert(r.status === 200 || r.status === 201, `sign doc ${r.status} ${r.text.slice(0,120)}`) })
   await test('C3 edit signed doc → 409', async () => { const r = await cOwner1.patch(`/api/documents/${docId}`, { title: 'x' }); eq(r.status, 409, 'signed edit') })
   await test('C5 export document PDF (owner)', async () => { const r = await cOwner1.get(`/api/documents/${docId}/export`); assert(isPdf(r), `doc export not pdf (${r.status})`) })
@@ -168,8 +183,8 @@ async function main() {
   section('F directories')
   await test('F1 platform members has block reasons', async () => {
     const r = await cAdmin.get('/api/admin/platform/members'); eq(r.status, 200, 'members')
-    const items = r.json?.items ?? r.json ?? []
-    assert(Array.isArray(items) && items.length >= 15, `members count ${items.length}`)
+    const items = r.json?.members ?? r.json?.items ?? r.json ?? []
+    assert(Array.isArray(items) && items.length >= 15, `members count ${items?.length}`)
   })
   await test('F2 org members (admin own org)', async () => { const r = await cAdminA.get('/api/admin/org/members'); assert(r.status === 200, `org members ${r.status}`) })
 
