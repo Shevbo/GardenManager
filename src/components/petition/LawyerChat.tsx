@@ -98,7 +98,7 @@ export function LawyerChat({ petitionId }: { petitionId: string }) {
                       <div style={{ marginTop: '6px' }}>
                         <button onClick={() => applyToDoc(m.id)} disabled={applyingId !== null}
                           style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', fontWeight: 600, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-                          {applyingId === m.id ? 'Применяю к тексту…' : '✓ Согласен — применить к тексту документа'}
+                          {applyingId === m.id ? 'Применяю к тексту… (до минуты)' : '✓ Согласен — применить к тексту документа'}
                         </button>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
