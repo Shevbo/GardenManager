@@ -237,9 +237,14 @@ async function main() {
     await cAdmin.patch('/api/admin/platform/settings', { key: 'lawyer_quota_per_document', value: '5' })
   })
   await test('L5 settings PATCH non-admin → 403', async () => { const r = await cOwner1.patch('/api/admin/platform/settings', { key: 'x', value: 'y' }); eq(r.status, 403, 'settings patch non-admin') })
-  await test('L6 lawyer POST as admin (tolerate LLM 502)', async () => {
-    const r = await cAdminA.post(`/api/petitions/${petId}/lawyer`, { content: 'Кратко: какие нормы ЖК РФ регулируют этот документ?' })
+  await test('L6 lawyer POST as admin + web-search active (🔎, tolerate LLM 502)', async () => {
+    const r = await cAdminA.post(`/api/petitions/${petId}/lawyer`, { content: 'Какие сроки и нормы ЖК РФ регулируют капитальный ремонт многоквартирного дома?' })
     assert(r.status === 200 || r.status === 502, `lawyer post ${r.status} ${r.text.slice(0,100)}`)
+    if (r.status === 200) {
+      const c = r.json?.assistantMessage?.content ?? ''
+      assert(c.length > 0, 'assistant content empty')
+      assert(c.startsWith('🔎'), `web-search not active (no 🔎 marker): ${c.slice(0,60)}`)
+    }
   })
   await test('L8 export thread doc + pdf (member)', async () => {
     const d = await cAdminA.get(`/api/petitions/${petId}/lawyer/export?format=doc`)
