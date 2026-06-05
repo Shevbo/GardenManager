@@ -18,7 +18,7 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
       id: true, title: true, draftText: true, recipient: true,
       status: true, orgId: true, orgGroupId: true, activityId: true,
       discussionDeadline: true, signingDeadline: true,
-      appendixTemplateIds: true,
+      template: { select: { title: true } },
     },
   })
   if (!petition) notFound()
@@ -44,9 +44,7 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
             ...petition,
             discussionDeadline: petition.discussionDeadline?.toISOString() ?? null,
             signingDeadline: petition.signingDeadline?.toISOString() ?? null,
-            appendixTemplateIds: Array.isArray(petition.appendixTemplateIds)
-              ? (petition.appendixTemplateIds as unknown[]).filter((x): x is string => typeof x === 'string')
-              : [],
+            appliedTemplateTitle: petition.template?.title ?? null,
           }} />
         </div>
         <PdfPreviewSidebarLazy pdfUrl={`/api/petitions/${id}/preview`} />

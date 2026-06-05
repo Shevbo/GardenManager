@@ -58,3 +58,54 @@ export async function revisePetitionWithComments(
   }
   return parsed as RevisionResult
 }
+
+/**
+ * Юридическая обработка текущего текста заявления (без комментариев) —
+ * для кнопки «Обработать юристом ИИ» на этапе черновика.
+ */
+export async function legalPolishText(draftText: string): Promise<RevisionResult> {
+  if (!process.env.DEEPSEEK_API_KEY || !process.env.DEEPSEEK_BASE_URL) {
+    throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
+  }
+
+  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'system',
+          content: `Ты — юридический редактор коллективных обращений и заявлений граждан РФ.
+Тебе дан текст заявления. Отредактируй его: улучши юридическую точность и официальный тон,
+исправь стиль и структуру, при уместности добавь корректные ссылки на нормы права.
+НЕ выдумывай новые факты и обстоятельства, которых нет в исходном тексте.
+Сохрани суть и все конкретные данные (адреса, ФИО, даты, суммы) без изменений.
+Верни JSON: {"revisedText": "обработанный текст", "summary": "кратко что изменилось"}`,
+        },
+        { role: 'user', content: `ТЕКСТ ЗАЯВЛЕНИЯ:\n${draftText}` },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`DeepSeek API error: ${err}`)
+  }
+
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> }
+  const parsed: unknown = JSON.parse(data.choices[0].message.content)
+  if (
+    typeof parsed !== 'object' || parsed === null ||
+    !('revisedText' in parsed) || typeof (parsed as { revisedText: unknown }).revisedText !== 'string' ||
+    !('summary' in parsed) || typeof (parsed as { summary: unknown }).summary !== 'string'
+  ) {
+    throw new Error('DeepSeek returned unexpected response shape')
+  }
+  return parsed as RevisionResult
+}

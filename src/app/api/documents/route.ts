@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!b?.templateId) return NextResponse.json({ error: 'templateId required' }, { status: 400 })
   const template = await prisma.documentTemplate.findUnique({ where: { id: b.templateId } })
   if (!template) return NextResponse.json({ error: 'Template not found' }, { status: 404 })
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true, phone: true, email: true } })
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true, phone: true, email: true, address: true } })
   const variables = (template.variables as unknown as TemplateVariable[]) ?? []
   const prefill: FieldValues = profileVariableValues(variables, user ?? {})
   const doc = await prisma.generatedDocument.create({
