@@ -9,6 +9,7 @@ type PetitionDraft = {
   title: string
   draftText: string
   recipient: string | null
+  senderLine: string | null
   discussionDeadline: string | null
   signingDeadline: string | null
   appliedTemplateTitle: string | null
@@ -86,6 +87,7 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
   const router = useRouter()
   const [title, setTitle] = useState(petition.title)
   const [recipient, setRecipient] = useState(petition.recipient ?? '')
+  const [senderLine, setSenderLine] = useState(petition.senderLine ?? '')
   const [draftText, setDraftText] = useState(petition.draftText)
   const [discussionDeadline, setDiscussionDeadline] = useState(toLocalDatetime(petition.discussionDeadline))
   const [signingDeadline, setSigningDeadline] = useState(toLocalDatetime(petition.signingDeadline))
@@ -157,6 +159,7 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
       }
       if (data.title) setTitle(data.title)
       if (data.recipient !== undefined) setRecipient(data.recipient ?? '')
+      if (data.senderLine !== undefined) setSenderLine(data.senderLine ?? '')
       if (data.draftText !== undefined) setDraftText(data.draftText)
       setAppliedTemplate(selectedTemplate?.title ?? null)
       setTplOpen(false)
@@ -191,7 +194,7 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
     try {
       const res = await fetch(`/api/petitions/${petition.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, draftText, recipient: recipient || null, discussionDeadline: discussionDeadline || undefined, signingDeadline: signingDeadline || undefined }),
+        body: JSON.stringify({ title, draftText, recipient: recipient || null, senderLine: senderLine || null, discussionDeadline: discussionDeadline || undefined, signingDeadline: signingDeadline || undefined }),
       })
       if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || 'Не удалось сохранить'); return }
       router.push(`/petition/${petition.id}`)
@@ -204,7 +207,7 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
     try {
       await fetch(`/api/petitions/${petition.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, draftText, recipient: recipient || null, discussionDeadline: discussionDeadline || undefined, signingDeadline: signingDeadline || undefined }),
+        body: JSON.stringify({ title, draftText, recipient: recipient || null, senderLine: senderLine || null, discussionDeadline: discussionDeadline || undefined, signingDeadline: signingDeadline || undefined }),
       })
       const res = await fetch(`/api/petitions/${petition.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -327,12 +330,20 @@ export function EditPetitionForm({ petition }: { petition: PetitionDraft }) {
             <span style={labelStyle}>Заголовок</span>
             <input type="text" value={title} onChange={e => setTitle(e.target.value)} required style={inputStyle} />
           </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <label>
+              <span style={labelStyle}>Кому (адресат)</span>
+              <textarea value={recipient} onChange={e => setRecipient(e.target.value)} rows={4}
+                placeholder={'Должность, звание\nФИО\nАдрес'} style={{ ...inputStyle, lineHeight: 1.5, resize: 'vertical' }} />
+            </label>
+            <label>
+              <span style={labelStyle}>От кого (заявитель)</span>
+              <textarea value={senderLine} onChange={e => setSenderLine(e.target.value)} rows={4}
+                placeholder={'ФИО / представитель\nАдрес для ответа\nТелефон, e-mail'} style={{ ...inputStyle, lineHeight: 1.5, resize: 'vertical' }} />
+            </label>
+          </div>
           <label>
-            <span style={labelStyle}>Кому (адресат)</span>
-            <input type="text" value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="Например, Главе управы района" style={inputStyle} />
-          </label>
-          <label>
-            <span style={labelStyle}>Текст заявления</span>
+            <span style={labelStyle}>Текст заявления (только суть, без шапки)</span>
             <textarea value={draftText} onChange={e => setDraftText(e.target.value)} required rows={12} style={{ ...inputStyle, lineHeight: 1.7, resize: 'vertical' }} />
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

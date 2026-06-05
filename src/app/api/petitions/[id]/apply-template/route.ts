@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const draftText = applyTemplate(template.bodyTemplate ?? '', values)
   const updated = await prisma.petition.update({
     where: { id },
-    data: { templateId: template.id, fieldValues: values, draftText, recipient: values.recipient ?? undefined },
+    data: { templateId: template.id, fieldValues: values, draftText, recipient: values.recipient ?? undefined, senderLine: values.from_line ?? undefined },
   })
   return NextResponse.json(updated)
 }

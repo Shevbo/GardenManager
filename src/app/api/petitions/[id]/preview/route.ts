@@ -36,7 +36,7 @@ export async function GET(
     petition.title,
     text,
     [],
-    { recipient: petition.recipient, orgName: petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq) }
+    { recipient: petition.recipient, orgName: petition.senderLine || petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq) }
   )
 
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')

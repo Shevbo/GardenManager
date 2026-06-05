@@ -48,9 +48,9 @@ export async function PATCH(
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { status, finalText, recipient, discussionDeadline, signingDeadline, title, draftText, templateId, fieldValues, appendixTemplateIds } =
+  const { status, finalText, recipient, senderLine, discussionDeadline, signingDeadline, title, draftText, templateId, fieldValues, appendixTemplateIds } =
     body as {
-      status?: string; finalText?: string; recipient?: string
+      status?: string; finalText?: string; recipient?: string; senderLine?: string
       discussionDeadline?: string; signingDeadline?: string
       title?: string; draftText?: string
       templateId?: string | null; fieldValues?: Record<string, string> | null
@@ -80,6 +80,7 @@ export async function PATCH(
     ...(draftText !== undefined && { draftText: draftText.trim() }),
     ...(finalText !== undefined && { finalText }),
     ...(recipient !== undefined && { recipient: recipient?.trim() || null }),
+    ...(senderLine !== undefined && { senderLine: senderLine?.trim() || null }),
     ...(discussionDeadline && { discussionDeadline: new Date(discussionDeadline) }),
     ...(signingDeadline && { signingDeadline: new Date(signingDeadline) }),
     ...(templateId !== undefined && { templateId: templateId ?? null }),

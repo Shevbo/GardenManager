@@ -75,7 +75,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       title: petition.title,
       bodyText,
       recipient: petition.recipient,
-      fromLine: petition.org.name,
+      fromLine: petition.senderLine || petition.org.name,
       rows: registryRows,
       masked: false,
       hideFooter: true,

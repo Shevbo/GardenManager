@@ -203,6 +203,7 @@ model Petition {
   docYear             Int?
   docSeq              Int?
   aiSummary           String?        @db.Text
+  senderLine          String?        @db.Text
 
   org               Organization         @relation(fields: [orgId], references: [id])
   createdByUser     User                 @relation("PetitionCreator", fields: [createdBy], references: [id])

@@ -18,7 +18,7 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
   const petition = await prisma.petition.findUnique({
     where: { id },
     select: {
-      id: true, title: true, draftText: true, recipient: true,
+      id: true, title: true, draftText: true, recipient: true, senderLine: true,
       status: true, orgId: true, orgGroupId: true, activityId: true,
       discussionDeadline: true, signingDeadline: true,
       docYear: true, docSeq: true, aiSummary: true,
