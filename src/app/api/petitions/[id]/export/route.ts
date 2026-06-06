@@ -53,7 +53,7 @@ async function buildPetitionPdf(id: string, userId: string) {
     petition.title,
     petition.finalText,
     signaturesWithMembership,
-    { recipient: petition.recipient, orgName: petition.senderLine || petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq) }
+    { recipient: petition.recipient, orgName: petition.senderLine || petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq), date: new Date(petition.createdAt).toLocaleDateString("ru-RU") }
   )
   return { pdf, petition }
 }

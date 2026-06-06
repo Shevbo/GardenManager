@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
 import path from 'path'
 import { renderDocumentPdf, buildRegistryRows } from './pdf/index'
+import { stampFooter } from './pdf/footer'
 import type { SignatureInput } from './pdf/registry-data'
 import type { ViewerContext } from './pdf/types'
 
@@ -17,11 +18,11 @@ export async function generatePetitionPdf(
   title: string,
   finalText: string,
   signatures: SignatureInput[],
-  opts?: { recipient?: string | null; orgName?: string | null; viewer?: ViewerContext; docNumber?: string | null },
+  opts?: { recipient?: string | null; orgName?: string | null; viewer?: ViewerContext; docNumber?: string | null; date?: string | null },
 ): Promise<Buffer> {
   const viewer = opts?.viewer ?? { viewerUserId: null, isAdmin: true }
   const rows = buildRegistryRows(signatures, viewer)
-  return renderDocumentPdf({
+  const buf = await renderDocumentPdf({
     layoutKey: 'official-letter',
     values: {},
     title,
@@ -30,9 +31,11 @@ export async function generatePetitionPdf(
     fromLine: opts?.orgName ?? null,
     rows,
     masked: !viewer.isAdmin,
-    footerSubject: 'обращение',
+    hideFooter: true, // footer (meta + page numbers) is stamped via pdf-lib below
     docNumber: opts?.docNumber ?? null,
   })
+  const footerLeft = [opts?.docNumber, title, 'обращение', opts?.date].filter(Boolean).join(' · ')
+  return stampFooter(buf, footerLeft)
 }
 
 // ---------------------------------------------------------------------------

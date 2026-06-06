@@ -2,6 +2,7 @@ import { createElement, Fragment } from 'react'
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import type { RegistryRow } from '../types'
 import { RegistrySection } from '../components/registry'
+import { fitTypography } from '../typography'
 
 const CM = 28.35 // 1cm in pt
 const s = StyleSheet.create({
@@ -34,8 +35,12 @@ export interface OfficialLetterProps {
 export function OfficialLetter(props: OfficialLetterProps) {
   const paragraphs = props.bodyText.split(/\n+/).filter(Boolean)
   const footerLeft = [props.docNumber, props.title, props.footerSubject, props.date].filter(Boolean).join(' · ')
+  // Widow control: pick body font size + paragraph gap so the last page isn't a thin widow.
+  const typo = fitTypography(paragraphs, props.rows?.length ?? 0)
+  const pageStyle = { ...s.page, fontSize: typo.fontSize }
+  const paraStyle = { ...s.para, marginBottom: typo.paraGap }
   return createElement(Document, {},
-    createElement(Page, { size: 'A4', style: s.page },
+    createElement(Page, { size: 'A4', style: pageStyle },
       createElement(View, { style: s.header },
         createElement(View, { style: s.headerBlock },
           props.recipient ? createElement(Fragment, {},
@@ -50,7 +55,7 @@ export function OfficialLetter(props: OfficialLetterProps) {
         ),
       ),
       createElement(Text, { style: s.title }, props.title),
-      ...paragraphs.map((p, i) => createElement(Text, { key: i, style: s.para }, p)),
+      ...paragraphs.map((p, i) => createElement(Text, { key: i, style: paraStyle }, p)),
       createElement(View, { style: s.signRow },
         createElement(Text, {}, props.date ? `Дата: ${props.date}` : ''),
         createElement(Text, {}, '_____________ / подпись'),
