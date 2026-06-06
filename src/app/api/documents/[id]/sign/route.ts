@@ -19,8 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const missing = missingRequired(variables, (doc.fieldValues as Record<string, string>) ?? {})
   if (missing.length) return NextResponse.json({ error: 'Заполните обязательные поля', missing }, { status: 400 })
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })
-  if (!user?.phoneVerified && !user?.emailVerified) return NextResponse.json({ error: 'Необходима верификация канала' }, { status: 403 })
-  const via = user.phoneVerified ? 'sms' : 'email'
+  if (!user?.phoneVerified) return NextResponse.json({ error: 'Для подписания необходим подтверждённый номер телефона' }, { status: 403 })
+  const via = 'sms'
   const signed = await prisma.generatedDocument.update({ where: { id }, data: { status: 'signed', signedAt: new Date(), verifiedVia: via } })
   return NextResponse.json(signed)
 }

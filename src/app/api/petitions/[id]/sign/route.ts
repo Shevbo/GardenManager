@@ -4,9 +4,9 @@ import { requirePhoneVerified } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
 import { canInteractWithPetition } from '@/lib/petition-access'
 
-const LEGAL_DISCLAIMER = `Подписывая данное заявление с подтверждением через SMS/email,
+const LEGAL_DISCLAIMER = `Подписывая данное заявление с подтверждением одноразовым кодом из СМС,
 я подтверждаю своё согласие с текстом заявления.
-Настоящая электронная подпись с верификацией канала связи эквивалентна
+Настоящая простая электронная подпись с верификацией абонентского номера эквивалентна
 моей собственноручной подписи на заявлении, которое будет направлено
 в государственные органы. Я осознаю юридические последствия данного действия.`
 
@@ -47,12 +47,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Derive verifiedVia server-side only (never trust client)
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })
 
-  // User must have at least one verified channel
-  if (!user?.phoneVerified && !user?.emailVerified) {
-    return NextResponse.json({ error: 'Необходима верификация канала связи' }, { status: 403 })
+  // Signing is SMS-only (ПЭП via verified phone number). No e-mail signing.
+  if (!user?.phoneVerified) {
+    return NextResponse.json({ error: 'Для подписания необходим подтверждённый номер телефона' }, { status: 403 })
   }
 
-  const via = user.phoneVerified ? 'sms' : 'email'
+  const via = 'sms'
 
   const signature = await prisma.petitionSignature.upsert({
     where: { petitionId_userId: { petitionId: id, userId: session.user.id } },
