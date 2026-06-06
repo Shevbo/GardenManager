@@ -11,16 +11,17 @@ describe('pdf registry rows', () => {
         verifiedVia: 'sms',
         legalConsent: true,
         signedAt: new Date('2026-05-23T10:00:00Z'),
-        user: { name: 'Иван Петров', email: 'ivan@test.ru', phone: '+79991234567' },
-        membership: { apartment: { number: '42' }, org: { name: 'ЖК Сад' } },
+        user: {
+          name: 'Иван Петров', email: 'ivan@test.ru', phone: '+79991234567',
+          properties: [{ address: 'ул. Садовая, д. 1', apartmentNumber: '42', signedAt: new Date('2026-05-20T00:00:00Z') }],
+        },
       },
     ], { viewerUserId: null, isAdmin: true })
     expect(rows[0]).toMatchObject({
       num: 1,
       name: 'Иван Петров',
-      apartment: '42',
-      org: 'ЖК Сад',
-      verifiedVia: 'SMS',
+      type: 'Собственник',
+      address: 'ул. Садовая, д. 1, кв. 42',
     })
   })
 })

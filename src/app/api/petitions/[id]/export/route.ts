@@ -15,7 +15,16 @@ async function buildPetitionPdf(id: string, userId: string) {
       org: { select: { name: true } },
       signatures: {
         include: {
-          user: { select: { name: true, email: true, phone: true } },
+          user: {
+            select: {
+              name: true, email: true, phone: true,
+              propertyOwnerships: {
+                where: { showInRegistry: true },
+                select: { address: true, apartmentNumber: true, signedAt: true },
+                orderBy: { createdAt: 'asc' },
+              },
+            },
+          },
         },
       },
     },
@@ -30,20 +39,9 @@ async function buildPetitionPdf(id: string, userId: string) {
   if (petition.status !== 'CLOSED' && petition.status !== 'EXPORTED') return { notReady: true as const }
   if (!petition.finalText) return { noText: true as const }
 
-  const signerMemberships = await prisma.membership.findMany({
-    where: {
-      orgId: petition.orgId,
-      userId: { in: petition.signatures.map(s => s.userId) },
-    },
-    include: {
-      apartment: { select: { number: true } },
-      org: { select: { name: true } },
-    },
-  })
-  const membershipByUserId = new Map(signerMemberships.map(m => [m.userId, m]))
-  const signaturesWithMembership = petition.signatures.map(sig => ({
+  const signaturesForPdf = petition.signatures.map(sig => ({
     ...sig,
-    membership: membershipByUserId.get(sig.userId) ?? null,
+    user: { ...sig.user, properties: sig.user.propertyOwnerships },
   }))
 
   const isAdmin = (membership?.role != null && ['org_admin', 'council_member', 'coalition_admin'].includes(membership.role)) || await isPlatformAdmin(userId)
@@ -52,7 +50,7 @@ async function buildPetitionPdf(id: string, userId: string) {
   const pdf = await generatePetitionPdf(
     petition.title,
     petition.finalText,
-    signaturesWithMembership,
+    signaturesForPdf,
     { recipient: petition.recipient, orgName: petition.senderLine || petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq), date: new Date(petition.createdAt).toLocaleDateString("ru-RU") }
   )
   return { pdf, petition }

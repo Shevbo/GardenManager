@@ -12,14 +12,13 @@ export interface TemplateVariable {
   options?: string[] // for type 'select'
 }
 
-/** Row of the signatory registry. */
+/** Row of the signatory registry. One row per shown property object (or one per signer if none). */
 export interface RegistryRow {
   num: number
   name: string
-  apartment: string
-  org: string
+  type: string      // «Собственник» (ownership SMS-confirmed) or «—»
+  address: string   // property address (incl. apartment) or «—»
   signedAt: string
-  verifiedVia: string
 }
 
 /** Viewer context controls PII masking. */

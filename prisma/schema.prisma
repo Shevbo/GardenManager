@@ -96,6 +96,7 @@ model User {
   password         String?
   emailVerified    DateTime?
   phoneVerified    DateTime?
+  contactDisclosure String   @default("on_request") // registry | on_request | none
   address          String?    @db.Text
   status           UserStatus @default(ACTIVE)
   profileCompleted Boolean    @default(true)
@@ -552,6 +553,7 @@ model PropertyOwnership {
   buildingId        String?
   declaredText      String?   @db.Text
   signedAt          DateTime?
+  showInRegistry    Boolean   @default(false)
   createdAt         DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

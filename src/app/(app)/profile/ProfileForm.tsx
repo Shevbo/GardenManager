@@ -8,13 +8,37 @@ interface Props {
   initialPhone: string | null
   phoneVerified: boolean
   initialEmail: string | null
+  initialContactDisclosure?: string | null
 }
 
-export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail }: Props) {
+const DISCLOSURE_OPTIONS = [
+  { value: 'registry', label: 'Раскрывать в реестре', hint: 'мои контакты можно показывать в реестре подписантов' },
+  { value: 'on_request', label: 'Только по отдельному запросу', hint: 'администратор запросит моё согласие перед передачей контактов' },
+  { value: 'none', label: 'Не раскрывать', hint: 'мои контакты не передаются' },
+]
+
+export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, initialContactDisclosure }: Props) {
   const [name, setName] = useState(initialName ?? '')
   const [address, setAddress] = useState(initialAddress ?? '')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [disclosure, setDisclosure] = useState(initialContactDisclosure ?? 'on_request')
+  const [savingDisc, setSavingDisc] = useState(false)
+
+  async function saveDisclosure(value: string) {
+    const prev = disclosure
+    setDisclosure(value)
+    setSavingDisc(true)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactDisclosure: value }),
+      })
+      if (!res.ok) setDisclosure(prev)
+    } catch { setDisclosure(prev) }
+    finally { setSavingDisc(false) }
+  }
 
   // Email change state
   const [currentEmail, setCurrentEmail] = useState(initialEmail ?? '')
@@ -332,6 +356,39 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
             </div>
           </form>
         )}
+      </section>
+
+      {/* Contacts disclosure preference */}
+      <section style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border)', padding: '24px' }}>
+        <h2 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '13px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 8px' }}>
+          Контакты в реестре
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--ink-soft)', margin: '0 0 16px', lineHeight: 1.5 }}>
+          Как разрешить использовать ваши контакты для связи в коллективных заявлениях, которые вы подписали.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {DISCLOSURE_OPTIONS.map(o => (
+            <label key={o.value} style={{
+              display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer',
+              border: `1px solid ${disclosure === o.value ? 'var(--forest)' : 'var(--border)'}`,
+              background: disclosure === o.value ? '#EDFAF3' : 'white',
+              borderRadius: '10px', padding: '12px 14px', transition: 'all 0.15s',
+            }}>
+              <input
+                type="radio"
+                name="contactDisclosure"
+                checked={disclosure === o.value}
+                onChange={() => saveDisclosure(o.value)}
+                disabled={savingDisc}
+                style={{ marginTop: '2px', accentColor: 'var(--forest)' }}
+              />
+              <span>
+                <span style={{ display: 'block', fontSize: '14px', color: 'var(--ink)', fontWeight: 500 }}>{o.label}</span>
+                <span style={{ display: 'block', fontSize: '12px', color: 'var(--ink-soft)', marginTop: '2px' }}>{o.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
       </section>
     </div>
   )

@@ -11,6 +11,7 @@ type PropertyOwnership = {
   sharePercent: number | null
   orgName: string | null
   signedAt: string | null
+  showInRegistry: boolean
   createdAt: string
 }
 
@@ -25,12 +26,28 @@ function PropertyCard({
   item,
   onDeleted,
   onSigned,
+  onToggleRegistry,
 }: {
   item: PropertyOwnership
   onDeleted: (id: string) => void
   onSigned: (id: string, signedAt: string) => void
+  onToggleRegistry: (id: string, value: boolean) => void
 }) {
   const [deleting, setDeleting] = useState(false)
+  const [savingReg, setSavingReg] = useState(false)
+
+  async function toggleRegistry() {
+    const next = !item.showInRegistry
+    setSavingReg(true)
+    try {
+      const res = await fetch(`/api/profile/property/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showInRegistry: next }),
+      })
+      if (res.ok) onToggleRegistry(item.id, next)
+    } finally { setSavingReg(false) }
+  }
   const [declare, setDeclare] = useState<DeclareState>({
     step: 'idle', loading: false, error: '', otp: '',
   })
@@ -116,6 +133,20 @@ function PropertyCard({
           </span>
         )}
       </div>
+
+      <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={item.showInRegistry}
+          onChange={toggleRegistry}
+          disabled={savingReg}
+          className="w-4 h-4 accent-forest"
+        />
+        <span className="text-xs text-ink/70">
+          Показывать этот объект в реестре подписантов
+          {savingReg && ' …'}
+        </span>
+      </label>
 
       {signedAt ? (
         <div className="flex items-center justify-between">
@@ -218,6 +249,10 @@ export function PropertyOwnershipSection() {
     setItems(prev => prev.map(i => i.id === id ? { ...i, signedAt } : i))
   }
 
+  function handleToggleRegistry(id: string, value: boolean) {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, showInRegistry: value } : i))
+  }
+
   async function handleAdd() {
     if (!address.trim()) { setAddError('Введите адрес'); return }
     setAddLoading(true); setAddError('')
@@ -258,6 +293,7 @@ export function PropertyOwnershipSection() {
           item={item}
           onDeleted={handleDeleted}
           onSigned={handleSigned}
+          onToggleRegistry={handleToggleRegistry}
         />
       ))}
 

@@ -13,7 +13,7 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, phone: true, phoneVerified: true, address: true },
+    select: { name: true, email: true, phone: true, phoneVerified: true, address: true, contactDisclosure: true },
   })
 
   if (!user) redirect('/login')
@@ -37,6 +37,7 @@ export default async function ProfilePage() {
           initialPhone={user.phone}
           phoneVerified={!!user.phoneVerified}
           initialEmail={user.email}
+          initialContactDisclosure={user.contactDisclosure}
         />
         <section className="mt-6 max-w-2xl mx-auto">
           <h2 className="font-display text-lg font-bold text-ink mb-3">Подтверждение собственности</h2>
