@@ -24,6 +24,8 @@ export interface RenderInput {
   footerSubject?: string
   docNumber?: string | null
   hideFooter?: boolean
+  fontSize?: number
+  paraGap?: number
 }
 
 export async function renderPackagePdf(parts: RenderInput[]): Promise<Buffer> {
@@ -63,6 +65,8 @@ export async function renderDocumentPdf(input: RenderInput): Promise<Buffer> {
       footerSubject: input.footerSubject,
       docNumber: input.docNumber,
       hideFooter: input.hideFooter,
+      fontSize: input.fontSize,
+      paraGap: input.paraGap,
     }
     element = createElement(OfficialLetter, props)
   } else if (input.layoutKey === 'police-statement') {

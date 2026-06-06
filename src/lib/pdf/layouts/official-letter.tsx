@@ -30,13 +30,17 @@ export interface OfficialLetterProps {
   footerSubject?: string      // for footer "№ · название · тема · дата"
   docNumber?: string | null   // 2026-NNN — shown first in the footer colophon
   hideFooter?: boolean        // suppress the fixed footer (used in package merges)
+  fontSize?: number           // body font size override (widow-control loop); else fitTypography
+  paraGap?: number            // paragraph gap override (widow-control loop)
 }
 
 export function OfficialLetter(props: OfficialLetterProps) {
   const paragraphs = props.bodyText.split(/\n+/).filter(Boolean)
   const footerLeft = [props.docNumber, props.title, props.footerSubject, props.date].filter(Boolean).join(' · ')
-  // Widow control: pick body font size + paragraph gap so the last page isn't a thin widow.
-  const typo = fitTypography(paragraphs, props.rows?.length ?? 0)
+  // Widow control: explicit fontSize/paraGap from the render-measure loop, else heuristic.
+  const typo = (props.fontSize && props.paraGap)
+    ? { fontSize: props.fontSize, paraGap: props.paraGap }
+    : fitTypography(paragraphs, props.rows?.length ?? 0)
   const pageStyle = { ...s.page, fontSize: typo.fontSize }
   const paraStyle = { ...s.para, marginBottom: typo.paraGap }
   return createElement(Document, {},

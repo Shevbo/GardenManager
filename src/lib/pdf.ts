@@ -4,15 +4,26 @@ import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/rendere
 import path from 'path'
 import { renderDocumentPdf, buildRegistryRows } from './pdf/index'
 import { stampFooter } from './pdf/footer'
+import { measurePdf } from './pdf/measure'
+import { estimateLayout } from './pdf/typography'
 import type { SignatureInput } from './pdf/registry-data'
 import type { ViewerContext } from './pdf/types'
 
 export { buildRegistryRows }
 export type { RegistryRow } from './pdf/types'
 
+const MIN_LAST_LINES = 8
+// Candidate (fontSize, paraGap) sets within the allowed bounds (12–15 / 4–8).
+const COMPRESS = [{ f: 13, g: 5 }, { f: 12, g: 4 }]
+const EXPAND = [{ f: 15, g: 7 }, { f: 15, g: 8 }]
+
 /**
- * Backward-compatible petition PDF. Renders via official-letter.
- * viewer defaults to admin (full PII) for server-side exports that already gate by role.
+ * Backward-compatible petition PDF (official-letter) with widow control + stamped footer.
+ *
+ * Widow rule: the last page must not be a thin widow (< 8 lines). Render at the default
+ * (14/6) and MEASURE actual pages + lines on the last page. If it's a widow, first try to
+ * COMPRESS (font→12, gap→4) to fit on N−1 pages; otherwise EXPAND (font→15, gap→8) so the
+ * last page carries ≥ 8 lines. Measurement is from the rendered PDF (not estimated).
  */
 export async function generatePetitionPdf(
   title: string,
@@ -22,7 +33,8 @@ export async function generatePetitionPdf(
 ): Promise<Buffer> {
   const viewer = opts?.viewer ?? { viewerUserId: null, isAdmin: true }
   const rows = buildRegistryRows(signatures, viewer)
-  const buf = await renderDocumentPdf({
+
+  const renderAt = (fontSize?: number, paraGap?: number) => renderDocumentPdf({
     layoutKey: 'official-letter',
     values: {},
     title,
@@ -31,9 +43,41 @@ export async function generatePetitionPdf(
     fromLine: opts?.orgName ?? null,
     rows,
     masked: !viewer.isAdmin,
-    hideFooter: true, // footer (meta + page numbers) is stamped via pdf-lib below
+    hideFooter: true, // footer (meta + page numbers) stamped via pdf-lib below
     docNumber: opts?.docNumber ?? null,
+    fontSize,
+    paraGap,
   })
+
+  const paragraphs = finalText.split(/\n+/).filter(Boolean)
+  const rowCount = rows.length
+
+  let buf = await renderAt(14, 6)
+  let pages = (await measurePdf(buf)).pages
+  // Detect a thin-widow last page via geometry estimate (react-pdf positions lines via nested
+  // cm transforms, so exact line count can't be read back — but the page-count FIX below is real).
+  const widow = pages > 1 && estimateLayout(paragraphs, rowCount, 14, 6).lastLines < MIN_LAST_LINES
+  if (widow) {
+    let fixed = false
+    // COMPRESS — drop to N−1 pages (verified by actual rendered page count)
+    for (const c of COMPRESS) {
+      const b = await renderAt(c.f, c.g)
+      const p = (await measurePdf(b)).pages
+      if (p < pages) { buf = b; pages = p; fixed = true; break }
+    }
+    // EXPAND — if compression can't drop a page, enlarge so the last page is fuller
+    // (estimate-gated; only if it doesn't add a page per actual render).
+    if (!fixed) {
+      for (const c of EXPAND) {
+        const est = estimateLayout(paragraphs, rowCount, c.f, c.g)
+        if (est.lastLines < MIN_LAST_LINES) continue
+        const b = await renderAt(c.f, c.g)
+        const p = (await measurePdf(b)).pages
+        if (p <= pages) { buf = b; pages = p; break }
+      }
+    }
+  }
+
   const footerLeft = [opts?.docNumber, title, 'обращение', opts?.date].filter(Boolean).join(' · ')
   return stampFooter(buf, footerLeft)
 }

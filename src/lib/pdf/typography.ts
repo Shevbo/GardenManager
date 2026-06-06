@@ -15,7 +15,7 @@ const MIN_LAST_LINES = 8
 
 export interface TypoChoice { fontSize: number; paraGap: number }
 
-function estimate(paragraphs: string[], registryRows: number, fontSize: number, paraGap: number): { pages: number; lastLines: number } {
+export function estimateLayout(paragraphs: string[], registryRows: number, fontSize: number, paraGap: number): { pages: number; lastLines: number } {
   const lineBox = fontSize * 1.4
   const charsPerLine = Math.max(20, CONTENT_W / (0.5 * fontSize))
   // overhead: addressee/sender header + title + signature row (roughly constant)
@@ -37,19 +37,19 @@ function estimate(paragraphs: string[], registryRows: number, fontSize: number, 
 /** Picks fontSize (12–15) and paraGap (4–8) to avoid a thin widow last page. */
 export function fitTypography(paragraphs: string[], registryRows: number): TypoChoice {
   const def: TypoChoice = { fontSize: 14, paraGap: 6 }
-  const base = estimate(paragraphs, registryRows, def.fontSize, def.paraGap)
+  const base = estimateLayout(paragraphs, registryRows, def.fontSize, def.paraGap)
   if (base.pages <= 1 || base.lastLines >= MIN_LAST_LINES) return def
 
   // COMPRESS: try to drop to base.pages - 1 (prefer the largest font that achieves it)
   const compress: TypoChoice[] = [{ fontSize: 13, paraGap: 5 }, { fontSize: 12, paraGap: 4 }]
   for (const c of compress) {
-    const e = estimate(paragraphs, registryRows, c.fontSize, c.paraGap)
+    const e = estimateLayout(paragraphs, registryRows, c.fontSize, c.paraGap)
     if (e.pages <= base.pages - 1) return c
   }
   // EXPAND: push the last page over the threshold (prefer not adding pages)
   const expand: TypoChoice[] = [{ fontSize: 15, paraGap: 7 }, { fontSize: 15, paraGap: 8 }]
   for (const c of expand) {
-    const e = estimate(paragraphs, registryRows, c.fontSize, c.paraGap)
+    const e = estimateLayout(paragraphs, registryRows, c.fontSize, c.paraGap)
     if (e.pages <= base.pages && e.lastLines >= MIN_LAST_LINES) return c
   }
   return def
