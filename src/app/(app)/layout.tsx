@@ -5,14 +5,20 @@ import { Sidebar } from '@/components/layout/Sidebar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
-  if (session?.user) {
-    const u = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { profileCompleted: true },
-    })
-    if (u && !u.profileCompleted) {
-      redirect('/register/details')
-    }
+
+  // Guests reach only the public petition page here (other app pages redirect to login).
+  // Render it bare — no sidebar, no fixed-height/overflow-hidden shell — so the document
+  // scrolls naturally on its own full-page layout.
+  if (!session?.user) {
+    return <>{children}</>
+  }
+
+  const u = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { profileCompleted: true },
+  })
+  if (u && !u.profileCompleted) {
+    redirect('/register/details')
   }
 
   return (
