@@ -88,10 +88,12 @@ export async function summarizeDocument(title: string, body: string): Promise<st
         },
         {
           role: 'user',
-          content: `Заголовок: ${title}\n\nТекст:\n${body}`,
+          // A 2–3 sentence description doesn't need the full body — cap input to keep latency low.
+          content: `Заголовок: ${title}\n\nТекст:\n${body.slice(0, 4000)}`,
         },
       ],
       temperature: 0.3,
+      max_tokens: 220,
     }),
   })
 
