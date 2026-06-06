@@ -12,6 +12,7 @@ type PropertyOwnership = {
   orgName: string | null
   signedAt: string | null
   showInRegistry: boolean
+  declaredText: string | null
   createdAt: string
 }
 
@@ -149,16 +150,30 @@ function PropertyCard({
       </label>
 
       {signedAt ? (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-ink/50">Декларация подписана {signedAt}</p>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-xs text-ink/40 hover:text-red-500 underline underline-offset-2 transition-colors disabled:opacity-50"
-          >
-            {deleting ? 'Удаляем...' : 'Удалить'}
-          </button>
-        </div>
+        <>
+          <div className="mb-3 p-3 bg-forest/5 border border-forest/20 rounded-lg">
+            <p className="text-[10px] font-bold tracking-wider uppercase text-forest mb-1.5">
+              Подтверждение собственности — подписано по СМС
+            </p>
+            <p className="text-xs text-ink/70 leading-relaxed">{item.declaredText ?? declaredText}</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-ink/50">
+              {item.apartmentNumber && <span>кв. {item.apartmentNumber}</span>}
+              {item.areaSqm != null && <span>площадь {item.areaSqm} м²</span>}
+              {item.sharePercent != null && <span>доля {item.sharePercent}%</span>}
+              <span>{item.orgName || 'без организации'}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-ink/50">Декларация подписана {signedAt}</p>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-xs text-ink/40 hover:text-red-500 underline underline-offset-2 transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Удаляем...' : 'Удалить'}
+            </button>
+          </div>
+        </>
       ) : declare.step === 'idle' ? (
         <>
           <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mb-3">

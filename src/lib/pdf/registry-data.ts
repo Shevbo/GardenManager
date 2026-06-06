@@ -22,8 +22,9 @@ export interface SignatureInput {
   }
 }
 
+// Registry shows the address only down to the building — apartment number is disclosed on request.
 function fmtAddress(p: SignatureProperty): string {
-  return p.apartmentNumber ? `${p.address}, кв. ${p.apartmentNumber}` : p.address
+  return p.address
 }
 
 /**
@@ -45,14 +46,16 @@ export function buildRegistryRows(signatures: SignatureInput[], viewer: ViewerCo
       rows.push({ num: ++num, name, type: '—', address: '—', signedAt })
       continue
     }
+    // Address is shown to the building only → collapse objects that render identically
+    // (same building + same ownership status); distinct buildings stay separate rows.
+    const seen = new Set<string>()
     for (const p of props) {
-      rows.push({
-        num: ++num,
-        name,
-        type: p.signedAt ? 'Собственник' : '—',
-        address: maskPii(fmtAddress(p), { ownerUserId: owner, viewer }),
-        signedAt,
-      })
+      const type = p.signedAt ? 'Собственник' : '—'
+      const addr = fmtAddress(p)
+      const key = `${addr}|${type}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      rows.push({ num: ++num, name, type, address: maskPii(addr, { ownerUserId: owner, viewer }), signedAt })
     }
   }
   return rows

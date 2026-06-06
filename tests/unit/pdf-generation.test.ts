@@ -21,7 +21,7 @@ describe('pdf registry rows', () => {
       num: 1,
       name: 'Иван Петров',
       type: 'Собственник',
-      address: 'ул. Садовая, д. 1, кв. 42',
+      address: 'ул. Садовая, д. 1',
     })
   })
 })

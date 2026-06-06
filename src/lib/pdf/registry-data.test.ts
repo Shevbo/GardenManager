@@ -19,7 +19,7 @@ describe('buildRegistryRows', () => {
   it('SMS-confirmed ownership shows «Собственник» + address', () => {
     const rows = buildRegistryRows([sig('u1', 'Иванов')], { viewerUserId: 'admin', isAdmin: true })
     expect(rows[0].type).toBe('Собственник')
-    expect(rows[0].address).toBe('ул. Садовая, д. 1, кв. 12')
+    expect(rows[0].address).toBe('ул. Садовая, д. 1')
   })
   it('participant sees own name, others masked (incl. address)', () => {
     const rows = buildRegistryRows([sig('u1', 'Иванов'), sig('u2', 'Петров')], { viewerUserId: 'u1', isAdmin: false })

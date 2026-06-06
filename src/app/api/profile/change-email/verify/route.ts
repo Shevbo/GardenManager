@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { email: newEmail },
+    data: { email: newEmail, emailVerified: new Date() }, // OTP to this address proves ownership
   })
 
   return NextResponse.json({ ok: true })

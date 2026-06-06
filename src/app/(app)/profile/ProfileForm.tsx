@@ -8,6 +8,7 @@ interface Props {
   initialPhone: string | null
   phoneVerified: boolean
   initialEmail: string | null
+  emailVerified?: boolean
   initialContactDisclosure?: string | null
 }
 
@@ -17,11 +18,12 @@ const DISCLOSURE_OPTIONS = [
   { value: 'none', label: 'Не раскрывать', hint: 'мои контакты не передаются' },
 ]
 
-export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, initialContactDisclosure }: Props) {
+export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, emailVerified, initialContactDisclosure }: Props) {
   const [name, setName] = useState(initialName ?? '')
   const [address, setAddress] = useState(initialAddress ?? '')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [isEmailVerified, setIsEmailVerified] = useState(!!emailVerified)
   const [disclosure, setDisclosure] = useState(initialContactDisclosure ?? 'on_request')
   const [savingDisc, setSavingDisc] = useState(false)
 
@@ -55,14 +57,15 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
     return () => clearTimeout(t)
   }, [emailCountdown])
 
-  async function handleRequestEmailChange() {
+  async function handleRequestEmailChange(emailArg?: string) {
+    const email = (emailArg ?? newEmail).trim()
     setEmailError('')
     setEmailLoading(true)
     try {
       const res = await fetch('/api/profile/change-email/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail }),
+        body: JSON.stringify({ email }),
       })
       const d = await res.json() as { error?: string }
       if (!res.ok) { setEmailError(d.error ?? 'Ошибка'); return }
@@ -84,6 +87,7 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
       const d = await res.json() as { error?: string; ok?: boolean }
       if (!res.ok || !d.ok) { setEmailError(d.error ?? 'Неверный код'); return }
       setCurrentEmail(newEmail.toLowerCase())
+      setIsEmailVerified(true)
       setEmailStep('view')
       setNewEmail('')
       setEmailOtp('')
@@ -229,11 +233,26 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
           <h2 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '13px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
             Email
           </h2>
+          {currentEmail && (isEmailVerified ? (
+            <span style={{ fontSize: '12px', color: 'var(--forest)', fontWeight: 600, background: '#E8F5E9', padding: '3px 10px', borderRadius: '20px' }}>
+              ✓ Подтверждён
+            </span>
+          ) : (
+            <span style={{ fontSize: '12px', color: '#92400E', fontWeight: 600, background: '#FEF3C7', padding: '3px 10px', borderRadius: '20px' }}>
+              Не подтверждён
+            </span>
+          ))}
         </div>
 
         {emailStep === 'view' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '14px', color: 'var(--ink)', fontFamily: 'Golos Text, sans-serif' }}>{currentEmail || '—'}</span>
+            {currentEmail && !isEmailVerified && (
+              <button type="button" onClick={() => { setNewEmail(currentEmail); setEmailError(''); void handleRequestEmailChange(currentEmail) }}
+                style={{ ...btnPrimary(false), padding: '6px 14px', fontSize: '13px' }}>
+                Подтвердить email
+              </button>
+            )}
             <button type="button" onClick={() => { setEmailStep('input'); setNewEmail(currentEmail); setEmailError('') }}
               style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', color: 'var(--ink-soft)', cursor: 'pointer', fontFamily: 'Golos Text, sans-serif' }}>
               Изменить
@@ -250,7 +269,7 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
             </div>
             {emailError && <p style={{ fontSize: '13px', color: '#991B1B', margin: 0 }}>{emailError}</p>}
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="button" onClick={handleRequestEmailChange}
+              <button type="button" onClick={() => handleRequestEmailChange()}
                 disabled={emailLoading || !newEmail.trim() || newEmail.trim().toLowerCase() === currentEmail}
                 style={btnPrimary(emailLoading || !newEmail.trim() || newEmail.trim().toLowerCase() === currentEmail)}>
                 {emailLoading ? 'Отправляем...' : 'Получить код на email'}
@@ -278,7 +297,7 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
               {emailCountdown > 0 ? (
                 <p style={{ fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>Повтор через {emailCountdown} сек.</p>
               ) : (
-                <button type="button" onClick={handleRequestEmailChange}
+                <button type="button" onClick={() => handleRequestEmailChange()}
                   style={{ background: 'none', border: 'none', color: 'var(--forest)', fontSize: '13px', cursor: 'pointer', fontFamily: 'Golos Text, sans-serif' }}>
                   Отправить снова
                 </button>
