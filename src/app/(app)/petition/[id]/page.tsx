@@ -42,7 +42,7 @@ export default async function PetitionPublicPage({ params }: { params: Promise<{
   const loginUrl = `/login?callbackUrl=${encodeURIComponent(`/petition/${id}`)}`
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F2F0EB', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px 80px', fontFamily: 'Golos Text, sans-serif' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#F2F0EB', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px 80px', fontFamily: 'Golos Text, sans-serif' }}>
       {/* Logo */}
       <div style={{ marginBottom: '32px' }}>
         <span style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '14px', fontWeight: 700, color: '#0A3D2E', letterSpacing: '0.05em' }}>
