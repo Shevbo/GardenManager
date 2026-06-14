@@ -11,20 +11,22 @@ import {
   MessageSquare,
   Settings,
   Building2,
+  BookOpen,
 } from 'lucide-react';
 import { OrgSelector } from './OrgSelector';
 import { PendingBadge } from './PendingBadge';
 
 const NAV_ITEMS = [
   { href: '/dashboard',         icon: LayoutDashboard, label: 'Главная' },
-  { href: '/assemblies',        icon: Vote,            label: 'Собрания' },
+  { href: '/assemblies',        icon: Vote,            label: 'Собрания',      comingSoon: true },
   { href: '/admin/petitions',   icon: FileSignature,   label: 'Заявления' },
   { href: '/documents',         icon: FileText,        label: 'Мои документы' },
-  { href: '/activities',        icon: CheckSquare,     label: 'Активности' },
-  { href: '/chats',             icon: MessageSquare,   label: 'Чаты' },
+  { href: '/activities',        icon: CheckSquare,     label: 'Активности',    comingSoon: true },
+  { href: '/chats',             icon: MessageSquare,   label: 'Чаты',          comingSoon: true },
 ];
 
 const BOTTOM_ITEMS = [
+  { href: '/about',             icon: BookOpen, label: 'О проекте' },
   { href: '/admin/platform',    icon: Settings, label: 'Управление' },
 ];
 
@@ -52,7 +54,7 @@ export function Sidebar() {
 
       {/* Main nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+        {NAV_ITEMS.map(({ href, icon: Icon, label, comingSoon }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link
@@ -62,11 +64,18 @@ export function Sidebar() {
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150',
                 active
                   ? 'bg-white/15 text-white font-medium'
-                  : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  : comingSoon
+                    ? 'text-white/35 hover:bg-white/5'
+                    : 'text-white/60 hover:bg-white/10 hover:text-white'
               )}
             >
               <Icon size={17} className="shrink-0" />
               <span className="flex-1">{label}</span>
+              {comingSoon && (
+                <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/50">
+                  скоро
+                </span>
+              )}
             </Link>
           );
         })}
