@@ -26,14 +26,25 @@ export async function register() {
     SMTP_PASSWORD: 'GARDEN_SMTP_NOREPLY_PASSWORD',
   }
 
+  // Опциональные секреты: их отсутствие деградирует отдельную фичу, но НЕ должно
+  // ронять весь сервер. Потребляющий код обязан сам терпеть отсутствие значения
+  // (напр. auth.ts: verifyViaBridge → `if (!secret) return null`).
+  const OPTIONAL = new Set<string>([
+    'SHECTORY_AUTH_BRIDGE_SECRET', // SSO-мост с shectory-portal (email/пароль вход); телефонный OTP не зависит
+  ])
+
   const { bootstrapSecrets } = await import('./lib/keymaster')
   const { loaded, failed } = await bootstrapSecrets(mapping)
 
+  const fatal = Object.keys(failed).filter(k => !OPTIONAL.has(k))
+  const degraded = Object.keys(failed).filter(k => OPTIONAL.has(k))
+
   console.log(`[instrumentation] keymaster: ${loaded.length} loaded, ${Object.keys(failed).length} failed`)
-  if (Object.keys(failed).length > 0 && !isDev) {
-    // В prod падаем при невозможности подгрузить секреты — fail-loud по стандарту.
-    throw new Error(
-      `Keymaster bootstrap failed in production: ${Object.keys(failed).join(', ')}`,
-    )
+  if (degraded.length > 0) {
+    console.warn(`[instrumentation] keymaster: optional secrets unavailable (feature degraded): ${degraded.join(', ')}`)
+  }
+  if (fatal.length > 0 && !isDev) {
+    // В prod падаем только при отсутствии обязательных секретов — fail-loud по стандарту.
+    throw new Error(`Keymaster bootstrap failed in production: ${fatal.join(', ')}`)
   }
 }
