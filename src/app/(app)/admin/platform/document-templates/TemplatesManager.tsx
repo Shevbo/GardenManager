@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { useConfirm } from '@/components/ui/dialog'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -412,11 +413,12 @@ function TemplateCard({
   onEdit: () => void
   onDeleted: () => void
 }) {
+  const confirm = useConfirm()
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
 
   async function del() {
-    if (!confirm(`Удалить шаблон «${template.title}»?`)) return
+    if (!(await confirm({ title: 'Удалить шаблон?', message: `«${template.title}»`, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setDeleting(true)
     setDeleteError('')
     try {

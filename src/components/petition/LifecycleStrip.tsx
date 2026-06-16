@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { CopyLinkButton } from './CopyLinkButton'
+import { useConfirm, useNotify } from '@/components/ui/dialog'
 
 const STEPS: { status: PetitionStatus; label: string }[] = [
   { status: 'DRAFT',       label: 'Черновик' },
@@ -23,11 +24,13 @@ type Props = {
 
 export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
+  const notify = useNotify()
   const activeIndex = ORDER.indexOf(currentStatus)
 
   async function transitionTo(target: PetitionStatus) {
     const label = STEPS.find(s => s.status === target)?.label ?? target
-    if (!window.confirm(`Перевести заявление в статус «${label}»?`)) return
+    if (!(await confirm({ title: 'Сменить статус?', message: `Перевести заявление в статус «${label}».`, confirmLabel: 'Перевести' }))) return
 
     const res = await fetch(`/api/petitions/${petitionId}/status`, {
       method: 'PATCH',
@@ -38,14 +41,14 @@ export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
       router.refresh()
     } else {
       const err = await res.json().catch(() => ({}))
-      alert(err.error ?? 'Ошибка перехода')
+      await notify({ title: 'Ошибка перехода', message: err.error ?? 'Не удалось сменить статус.', tone: 'danger' })
     }
   }
 
   async function toggleVisibility() {
     const next = !isPublic
     const label = next ? 'публичным' : 'скрытым'
-    if (!window.confirm(`Сделать заявление ${label}?`)) return
+    if (!(await confirm({ title: 'Изменить видимость?', message: `Сделать заявление ${label}.`, confirmLabel: 'Сделать' }))) return
 
     const res = await fetch(`/api/petitions/${petitionId}/visibility`, {
       method: 'PATCH',
@@ -55,7 +58,7 @@ export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
     if (res.ok) {
       router.refresh()
     } else {
-      alert('Ошибка изменения видимости')
+      await notify({ title: 'Ошибка', message: 'Не удалось изменить видимость.', tone: 'danger' })
     }
   }
 

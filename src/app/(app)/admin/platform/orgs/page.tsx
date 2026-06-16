@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Building2, Pencil, Trash2, Check, X } from 'lucide-react'
+import { useConfirm } from '@/components/ui/dialog'
 
 interface Org {
   id: string
@@ -16,6 +17,7 @@ const TYPE_LABEL: Record<Org['type'], string> = {
 }
 
 export default function PlatformOrgsPage() {
+  const confirm = useConfirm()
   const [orgs, setOrgs] = useState<Org[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -78,7 +80,7 @@ export default function PlatformOrgsPage() {
 
   async function remove(orgId: string, orgName: string, e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation()
-    if (!confirm(`Удалить организацию "${orgName}"?\n\nДанные сохранятся в БД только если нет зависимостей (зданий, участников, заявлений, собраний).`)) return
+    if (!(await confirm({ title: 'Удалить организацию?', message: `«${orgName}»\n\nУдаление возможно только при отсутствии зависимостей (зданий, участников, заявлений, собраний).`, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setError('')
     const res = await fetch(`/api/admin/platform/orgs/${orgId}`, { method: 'DELETE' })
     if (!res.ok) {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { BadgeCheck, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { useConfirm } from '@/components/ui/dialog'
 
 interface Member {
   id: string
@@ -43,6 +44,7 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 export default function MembersPage() {
+  const confirm = useConfirm()
   const [members, setMembers] = useState<Member[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,7 +93,7 @@ export default function MembersPage() {
   }
 
   async function removeMember(memberId: string) {
-    if (!confirm('Удалить участника?')) return
+    if (!(await confirm({ title: 'Удалить участника?', confirmLabel: 'Удалить', tone: 'danger' }))) return
     setRemovingId(memberId)
     try {
       await fetch(`/api/admin/org/members/${memberId}`, { method: 'DELETE' })

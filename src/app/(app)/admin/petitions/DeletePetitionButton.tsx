@@ -1,18 +1,27 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
+import { useConfirm, useNotify } from '@/components/ui/dialog'
 
 export function DeletePetitionButton({ petitionId, title }: { petitionId: string; title: string }) {
   const router = useRouter()
+  const confirm = useConfirm()
+  const notify = useNotify()
 
   async function handleDelete() {
-    if (!window.confirm(`Удалить заявление «${title}»?\n\nЭто действие необратимо.`)) return
+    const ok = await confirm({
+      title: 'Удалить заявление?',
+      message: `«${title}»\n\nЭто действие необратимо.`,
+      confirmLabel: 'Удалить',
+      tone: 'danger',
+    })
+    if (!ok) return
     const res = await fetch(`/api/petitions/${petitionId}`, { method: 'DELETE' })
     if (res.ok) {
       router.refresh()
     } else {
       const data = await res.json().catch(() => ({}))
-      alert(data.error ?? 'Не удалось удалить')
+      await notify({ title: 'Не удалось удалить', message: data.error ?? 'Попробуйте ещё раз.', tone: 'danger' })
     }
   }
 

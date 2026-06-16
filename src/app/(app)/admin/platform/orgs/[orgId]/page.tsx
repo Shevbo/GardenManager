@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Building2, Home, Plus, Trash2, ChevronDown, ChevronRight, User, BadgeCheck, Pencil, Check, X } from 'lucide-react'
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
+import { useConfirm } from '@/components/ui/dialog'
 
 type Member = {
   id: string; role: string; isOwner: boolean; areaSqm: number | null; verifiedAt: string | null
@@ -23,6 +24,7 @@ type OrgTree = {
 }
 
 export default function OrgTreePage() {
+  const confirm = useConfirm()
   const params = useParams<{ orgId: string }>()
   const orgId = params.orgId
   const [org, setOrg] = useState<OrgTree | null>(null)
@@ -91,7 +93,7 @@ export default function OrgTreePage() {
   }
 
   async function deleteBuilding(buildingId: string, address: string) {
-    if (!confirm(`Удалить здание "${address}"?`)) return
+    if (!(await confirm({ title: 'Удалить здание?', message: `«${address}»`, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setError('')
     const res = await fetch(`/api/admin/platform/buildings/${buildingId}`, { method: 'DELETE' })
     if (!res.ok) {
@@ -136,7 +138,7 @@ export default function OrgTreePage() {
   }
 
   async function deleteApartment(apartmentId: string, number: string) {
-    if (!confirm(`Удалить квартиру №${number}?`)) return
+    if (!(await confirm({ title: `Удалить квартиру №${number}?`, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setError('')
     const res = await fetch(`/api/admin/platform/apartments/${apartmentId}`, { method: 'DELETE' })
     if (!res.ok) {
@@ -147,7 +149,7 @@ export default function OrgTreePage() {
   }
 
   async function deleteMembership(membershipId: string, name: string) {
-    if (!confirm(`Удалить участника ${name}?`)) return
+    if (!(await confirm({ title: 'Удалить участника?', message: name, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setError('')
     const res = await fetch(`/api/admin/platform/memberships/${membershipId}`, { method: 'DELETE' })
     if (!res.ok) {

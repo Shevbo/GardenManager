@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useConfirm } from '@/components/ui/dialog'
 
 type Props = {
   membershipId: string
@@ -14,6 +15,7 @@ export function OwnershipDeclareCard({
   membershipId, orgName, apartmentNumber, buildingAddress,
   currentAreaSqm, lastDeclaredAt,
 }: Props) {
+  const confirm = useConfirm()
   const [step, setStep] = useState<'idle' | 'otp'>('idle')
   const [revoking, setRevoking] = useState(false)
   const [revoked, setRevoked] = useState(false)
@@ -46,7 +48,7 @@ export function OwnershipDeclareCard({
   }
 
   async function revoke() {
-    if (!window.confirm('Отозвать декларацию собственности?\n\nВаш голос в голосованиях больше не будет учитываться по площади.')) return
+    if (!(await confirm({ title: 'Отозвать декларацию собственности?', message: 'Ваш голос в голосованиях больше не будет учитываться по площади.', confirmLabel: 'Отозвать', tone: 'danger' }))) return
     setRevoking(true); setError('')
     try {
       const res = await fetch('/api/profile/ownership/declare-revoke', {

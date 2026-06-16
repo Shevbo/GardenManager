@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import { ALL_STATUSES, type PetitionStatus } from '@/lib/petition-status'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
+import { useConfirm } from '@/components/ui/dialog'
 
 type Row = {
   id: string
@@ -18,6 +19,7 @@ type Row = {
 
 export function AdminPetitionRow({ petition }: { petition: Row }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [status, setStatus] = useState(petition.status)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -42,10 +44,11 @@ export function AdminPetitionRow({ petition }: { petition: Row }) {
   }
 
   async function forceDelete() {
-    const warn = petition.signatures > 0
-      ? `Удалить «${petition.title}»?\n\nУ заявления ${petition.signatures} подпис(и/ей) — они будут удалены вместе с заявлением. Действие необратимо.`
-      : `Удалить «${petition.title}»?\n\nДействие необратимо.`
-    if (!window.confirm(warn)) return
+    const message = petition.signatures > 0
+      ? `«${petition.title}»\n\nУ заявления ${petition.signatures} подпис(и/ей) — они будут удалены вместе с заявлением. Действие необратимо.`
+      : `«${petition.title}»\n\nДействие необратимо.`
+    const ok = await confirm({ title: 'Удалить заявление?', message, confirmLabel: 'Удалить', tone: 'danger' })
+    if (!ok) return
     setBusy(true); setErr('')
     try {
       const res = await fetch(`/api/admin/platform/petitions/${petition.id}`, { method: 'DELETE' })

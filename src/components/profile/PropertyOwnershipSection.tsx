@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
+import { useConfirm } from '@/components/ui/dialog'
 
 type PropertyOwnership = {
   id: string
@@ -34,6 +35,7 @@ function PropertyCard({
   onSigned: (id: string, signedAt: string) => void
   onToggleRegistry: (id: string, value: boolean) => void
 }) {
+  const confirm = useConfirm()
   const [deleting, setDeleting] = useState(false)
   const [savingReg, setSavingReg] = useState(false)
 
@@ -56,7 +58,7 @@ function PropertyCard({
   const declaredText = `Я подтверждаю, что являюсь собственником объекта по адресу: «${item.address}${item.apartmentNumber ? `, кв. ${item.apartmentNumber}` : ''}»${item.areaSqm ? `, площадь ${item.areaSqm} м²` : ''}${item.sharePercent ? `, доля ${item.sharePercent}%` : ''}. Смогу подтвердить правоустанавливающими документами при необходимости.`
 
   async function handleDelete() {
-    if (!window.confirm(`Удалить объект «${item.address}»?`)) return
+    if (!(await confirm({ title: 'Удалить объект?', message: `«${item.address}»`, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setDeleting(true)
     try {
       const res = await fetch(`/api/profile/property/${item.id}`, { method: 'DELETE' })

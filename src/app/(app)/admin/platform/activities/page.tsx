@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Trash2, Plus } from 'lucide-react'
+import { useConfirm } from '@/components/ui/dialog'
 
 interface Activity {
   id: string
@@ -9,6 +10,7 @@ interface Activity {
 }
 
 export default function PlatformActivitiesPage() {
+  const confirm = useConfirm()
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
@@ -46,7 +48,7 @@ export default function PlatformActivitiesPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Удалить активность? Все участники потеряют членство.')) return
+    if (!(await confirm({ title: 'Удалить активность?', message: 'Все участники потеряют членство.', confirmLabel: 'Удалить', tone: 'danger' }))) return
     const res = await fetch(`/api/activities/${id}`, { method: 'DELETE' })
     if (res.ok) load()
   }

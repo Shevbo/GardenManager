@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Trash2, Plus, X } from 'lucide-react'
+import { useConfirm } from '@/components/ui/dialog'
 
 interface OrgGroupOrg {
   org: { id: string; name: string }
@@ -20,6 +21,7 @@ interface Organization {
 }
 
 export default function PlatformOrgGroupsPage() {
+  const confirm = useConfirm()
   const [groups, setGroups] = useState<OrgGroup[]>([])
   const [allOrgs, setAllOrgs] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,7 +67,7 @@ export default function PlatformOrgGroupsPage() {
   }
 
   async function deleteGroup(id: string) {
-    if (!confirm('Удалить группу? Петиции с этой группой потеряют таргетинг.')) return
+    if (!(await confirm({ title: 'Удалить группу?', message: 'Заявления с этой группой потеряют таргетинг.', confirmLabel: 'Удалить', tone: 'danger' }))) return
     const res = await fetch(`/api/org-groups/${id}`, { method: 'DELETE' })
     if (res.ok) load()
   }

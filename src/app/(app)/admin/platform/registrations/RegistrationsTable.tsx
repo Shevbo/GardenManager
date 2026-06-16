@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, X, Building2 } from 'lucide-react'
+import { usePrompt } from '@/components/ui/dialog'
 
 type Row = {
   id: string
@@ -21,6 +22,7 @@ type Props = {
 }
 
 export function RegistrationsTable({ rows, orgs }: Props) {
+  const prompt = usePrompt()
   const router = useRouter()
   const [orgChoice, setOrgChoice] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string | null>(null)
@@ -58,10 +60,16 @@ export function RegistrationsTable({ rows, orgs }: Props) {
   }
 
   async function reject(reg: Row) {
-    if (!confirm(`Отклонить заявку от ${reg.user.email ?? reg.user.name}?`)) return
+    const reason = await prompt({
+      title: 'Отклонить заявку?',
+      message: `От ${reg.user.email ?? reg.user.name}.`,
+      placeholder: 'Причина (опционально)',
+      multiline: true,
+      confirmLabel: 'Отклонить',
+    })
+    if (reason === null) return
     setBusy(reg.id); setError('')
     try {
-      const reason = prompt('Причина (опционально)') ?? ''
       const res = await fetch(`/api/admin/platform/registrations/${reg.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

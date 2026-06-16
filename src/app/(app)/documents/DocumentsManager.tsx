@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
+import { useConfirm } from '@/components/ui/dialog'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -572,11 +573,12 @@ function DocumentCard({
   onDeleted: () => void
   onUpdated: (updated: GeneratedDocument) => void
 }) {
+  const confirm = useConfirm()
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
   async function handleDelete() {
-    if (!confirm(`Удалить документ «${doc.title}»?`)) return
+    if (!(await confirm({ title: 'Удалить документ?', message: `«${doc.title}»`, confirmLabel: 'Удалить', tone: 'danger' }))) return
     setDeleting(true)
     setDeleteError('')
     try {
