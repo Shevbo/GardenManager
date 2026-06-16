@@ -2,6 +2,15 @@ export type PetitionStatus =
   | 'DRAFT' | 'DISCUSSION' | 'AI_REVISION'
   | 'SIGNING' | 'CLOSED' | 'EXPORTED'
 
+/** Every status in canonical workflow order. */
+export const ALL_STATUSES: PetitionStatus[] = [
+  'DRAFT', 'DISCUSSION', 'AI_REVISION', 'SIGNING', 'CLOSED', 'EXPORTED',
+]
+
+export function isPetitionStatus(value: unknown): value is PetitionStatus {
+  return typeof value === 'string' && (ALL_STATUSES as string[]).includes(value)
+}
+
 const TRANSITIONS: Record<PetitionStatus, PetitionStatus[]> = {
   DRAFT:       ['DISCUSSION'],
   DISCUSSION:  ['AI_REVISION'],

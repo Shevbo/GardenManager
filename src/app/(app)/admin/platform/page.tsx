@@ -55,10 +55,10 @@ export default async function PlatformAdminIndex() {
       description: 'Справочник официальных бланков: заявления, обращения, иски. Переменные и макеты PDF.',
     },
     {
-      href: '/admin/petitions',
+      href: '/admin/platform/petitions',
       icon: FileSignature,
-      title: 'Все заявления',
-      description: 'Сводный список заявлений по всем организациям.',
+      title: 'Репозиторий заявлений',
+      description: 'Все заявления всех организаций: смена статуса по workflow, полная правка и удаление (в т.ч. с подписями).',
     },
   ]
 
