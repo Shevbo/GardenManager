@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ThumbsUp, ThumbsDown, Minus, Calendar, Users, FileText, Download } from 'lucide-react'
+import { useConfirm } from '@/components/ui/dialog'
 import type { QuestionResult, AssemblyResults } from '@/lib/assembly-results'
 
 type Choice = 'FOR' | 'AGAINST' | 'ABSTAIN'
@@ -63,6 +64,7 @@ type Props = {
 
 export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, results }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [choices, setChoices] = useState<Record<string, Choice>>(() => {
     const init: Record<string, Choice> = {}
     for (const v of myVotes) init[v.questionId] = v.choice
@@ -76,12 +78,22 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
   const hasExistingVote = myVotes.length > 0
 
   async function transition(status: Assembly['status']) {
+    // GARD-3 HITL: closing is irreversible — confirm before acting.
+    if (status === 'CLOSED') {
+      const ok = await confirm({
+        title: 'Закрыть собрание?',
+        message: 'Действие необратимо: голосование завершится, и будет сформирован итоговый протокол.',
+        confirmLabel: 'Закрыть собрание',
+        tone: 'danger',
+      })
+      if (!ok) return
+    }
     setTransitioning(true); setError('')
     try {
       const r = await fetch(`/api/assemblies/${assembly.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(status === 'CLOSED' ? { confirm: true } : {}) }),
       })
       if (!r.ok) {
         const d = await r.json().catch(() => ({}))
@@ -264,6 +276,11 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
                     <div>За: {result.forArea.toFixed(1)} м²</div>
                     <div>Против: {result.againstArea.toFixed(1)} м²</div>
                     <div>Воздерж.: {result.abstainArea.toFixed(1)} м²</div>
+                  </div>
+                  <div className="text-xs text-ink/50">
+                    {result.majorityBasis === 'TOTAL' ? 'Считается от всех собственников' : 'Считается от проголосовавших'}
+                    {' · не голосовали (справочно): '}
+                    {result.notVotedArea.toFixed(1)} м² · {result.notVotedCount} соб.
                   </div>
                   {myChoice && (
                     <div className="text-xs text-ink/50 pt-1">

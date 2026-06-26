@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:seed": "tsx prisma/seed.ts",
     "test:smoke": "playwright test tests/e2e/smoke.test.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "verify": "tsc --noEmit && npm run lint && vitest run && next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

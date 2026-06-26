@@ -57,8 +57,24 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { status } = body as { status?: 'DRAFT' | 'ANNOUNCED' | 'VOTING' | 'CLOSED' }
+  const { status, confirm } = body as {
+    status?: 'DRAFT' | 'ANNOUNCED' | 'VOTING' | 'CLOSED'
+    confirm?: boolean
+  }
   if (!status) return NextResponse.json({ error: 'status required' }, { status: 400 })
+
+  // GARD-3 HITL fail-closed: closing an assembly is irreversible (no transition
+  // out of CLOSED) and triggers the official protocol. Never act without an
+  // explicit human confirmation — default is to NOT close.
+  if (status === 'CLOSED' && confirm !== true) {
+    return NextResponse.json(
+      {
+        error: 'Закрытие собрания необратимо — требуется подтверждение',
+        requiresConfirmation: true,
+      },
+      { status: 409 }
+    )
+  }
 
   const transitions: Record<string, string[]> = {
     DRAFT: ['ANNOUNCED'],

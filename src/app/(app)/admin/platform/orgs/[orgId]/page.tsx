@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { Building2, Home, Plus, Trash2, ChevronDown, ChevronRight, User, BadgeCheck, Pencil, Check, X } from 'lucide-react'
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
 import { useConfirm } from '@/components/ui/dialog'
@@ -188,9 +189,9 @@ export default function OrgTreePage() {
 
   return (
     <div className="p-8 max-w-4xl overflow-y-auto flex-1">
-      <a href="/admin/platform/orgs" className="text-sm text-forest hover:underline mb-4 inline-block">
+      <Link href="/admin/platform/orgs" className="text-sm text-forest hover:underline mb-4 inline-block">
         ← Все организации
-      </a>
+      </Link>
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-ink mb-1">{org.name}</h1>
         <p className="text-ink/50 text-sm">

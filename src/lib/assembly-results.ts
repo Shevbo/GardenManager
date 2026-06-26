@@ -1,13 +1,17 @@
 import prisma from './prisma'
+import { tallyAssembly, basisForThreshold, type TallyInput, type MajorityBasis } from './assembly-tally'
 
 export type QuestionResult = {
   questionId: string
   text: string
   order: number
   requiredMajorityPct: number
+  majorityBasis: MajorityBasis
   forArea: number
   againstArea: number
   abstainArea: number
+  notVotedArea: number // reference only — eligible owner area that did not vote
+  notVotedCount: number // reference only — eligible owners who did not vote
   totalVoted: number
   totalEligible: number
   passed: boolean
@@ -25,6 +29,8 @@ export type AssemblyResults = {
   questions: QuestionResult[]
 }
 
+// DB-fetch wrapper around the pure `tallyAssembly` (the legally-critical core,
+// covered by golden tests in assembly-tally.test.ts).
 export async function computeResults(assemblyId: string): Promise<AssemblyResults | null> {
   const assembly = await prisma.assembly.findUnique({
     where: { id: assemblyId },
@@ -38,51 +44,62 @@ export async function computeResults(assemblyId: string): Promise<AssemblyResult
     where: { orgId: assembly.orgId },
     select: { areaSqm: true, isOwner: true },
   })
-  const totalEligibleArea = eligibleMemberships
-    .filter(m => m.isOwner)
-    .reduce((sum, m) => sum + (m.areaSqm ?? 0), 0)
 
   const allVotes = await prisma.assemblyVote.findMany({
     where: { question: { assemblyId } },
     select: { questionId: true, choice: true, areaSqm: true, userId: true, isOwner: true },
   })
 
-  const uniqueVoterAreas = new Map<string, number>()
-  for (const v of allVotes) {
-    if (v.isOwner) uniqueVoterAreas.set(v.userId, v.areaSqm)
-  }
-  const totalVotedArea = Array.from(uniqueVoterAreas.values()).reduce((s, a) => s + a, 0)
-  const quorumPct = totalEligibleArea > 0 ? (totalVotedArea / totalEligibleArea) * 100 : 0
-  const quorumReached = quorumPct >= assembly.quorumPercent
-
-  const questions: QuestionResult[] = assembly.questions.map(q => {
-    const qVotes = allVotes.filter(v => v.questionId === q.id && v.isOwner)
-    const forArea = qVotes.filter(v => v.choice === 'FOR').reduce((s, v) => s + v.areaSqm, 0)
-    const againstArea = qVotes.filter(v => v.choice === 'AGAINST').reduce((s, v) => s + v.areaSqm, 0)
-    const abstainArea = qVotes.filter(v => v.choice === 'ABSTAIN').reduce((s, v) => s + v.areaSqm, 0)
-    const totalVoted = forArea + againstArea + abstainArea
-    const forPct = totalVoted > 0 ? (forArea / totalVoted) * 100 : 0
-    const passed = quorumReached && forPct >= q.requiredMajorityPct
-    return {
-      questionId: q.id,
+  const input: TallyInput = {
+    quorumPercent: assembly.quorumPercent,
+    memberships: eligibleMemberships.map(m => ({ areaSqm: m.areaSqm, isOwner: m.isOwner })),
+    votes: allVotes.map(v => ({
+      questionId: v.questionId,
+      userId: v.userId,
+      choice: v.choice as 'FOR' | 'AGAINST' | 'ABSTAIN',
+      areaSqm: v.areaSqm,
+      isOwner: v.isOwner,
+    })),
+    // Legal basis (ЖК РФ ст.46): per Boris's ruling both ordinary and qualified
+    // (>= 2/3) decisions are tallied on the PARTICIPATING owners (active voters);
+    // owners who did not vote are reported only as a reference figure. The
+    // `basisForThreshold` fallback returns PARTICIPATING; once an explicit
+    // per-question `majorityBasis` column lands, read it here (falling back to
+    // basisForThreshold for legacy rows).
+    questions: assembly.questions.map(q => ({
+      id: q.id,
       text: q.text,
       order: q.order,
       requiredMajorityPct: q.requiredMajorityPct,
-      forArea, againstArea, abstainArea,
-      totalVoted: qVotes.length,
-      totalEligible: eligibleMemberships.filter(m => m.isOwner).length,
-      passed, forPct,
-    }
-  })
+      majorityBasis: basisForThreshold(q.requiredMajorityPct),
+    })),
+  }
+
+  const t = tallyAssembly(input)
 
   return {
     assemblyId,
     status: assembly.status,
-    quorumPercent: assembly.quorumPercent,
-    totalEligibleArea,
-    totalVotedArea,
-    quorumReached,
-    quorumPct,
-    questions,
+    quorumPercent: t.quorumPercent,
+    totalEligibleArea: t.totalEligibleArea,
+    totalVotedArea: t.totalVotedArea,
+    quorumReached: t.quorumReached,
+    quorumPct: t.quorumPct,
+    questions: t.questions.map(q => ({
+      questionId: q.questionId,
+      text: q.text,
+      order: q.order,
+      requiredMajorityPct: q.requiredMajorityPct,
+      majorityBasis: q.majorityBasis,
+      forArea: q.forArea,
+      againstArea: q.againstArea,
+      abstainArea: q.abstainArea,
+      notVotedArea: q.notVotedArea,
+      notVotedCount: q.notVotedCount,
+      totalVoted: q.totalVotedCount,
+      totalEligible: q.totalEligibleCount,
+      passed: q.passed,
+      forPct: q.forPct,
+    })),
   }
 }

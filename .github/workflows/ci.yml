@@ -1,0 +1,22 @@
+name: CI — verify gate
+
+# GARD-2: the composite verify gate runs on every PR and branch push.
+# Tests mock Prisma (tests/setup.ts), so no database is required in CI.
+on:
+  pull_request:
+  push:
+    branches: [main, 'feature/**']
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: npm run verify (tsc + lint + tests + build)
+        run: npm run verify
