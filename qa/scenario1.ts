@@ -237,7 +237,28 @@ async function main() {
     const ok = r.status === 200 || r.status === 201
     o.ops.push({ op: 'vote', ok, detail: `${votes.map(v => v.choice).join('/')} http ${r.status}` }); if (ok) voteOk++
   }
-  rec('assembly', `собственники проголосовали (площадно-взвешенно)`, voteOk === 45, `(${voteOk}/45 голосовавших, P5 не голосует)`)
+  rec('assembly', `собственники проголосовали (по голосам)`, voteOk === 45, `(${voteOk}/45 голосовавших, P5 не голосует)`)
+
+  // assembly SMS signatures (ПЭП) — verified owners sign the protocol during VOTING
+  let asmSignOk = 0
+  for (const o of owners) {
+    if (!o.verified) continue // P5 (unverified) cannot sign
+    const r = await o.client.post(`/api/assemblies/${asmId}/sign`, { legalConsent: true })
+    const ok = r.status === 201
+    o.ops.push({ op: 'assembly-sign', ok, detail: `http ${r.status}` }); if (ok) asmSignOk++
+  }
+  rec('assembly', 'подписи собрания через СМС (ПЭП) собраны', asmSignOk === 45, `(${asmSignOk}/45 верифиц.)`)
+  // P5 (unverified) cannot sign
+  const p5sign = await owners.find(o => o.code === 'P5')!.client.post(`/api/assemblies/${asmId}/sign`, { legalConsent: true })
+  rec('assembly', 'P5 (незавершённый профиль) не может подписать собрание', p5sign.status === 403, `(http ${p5sign.status})`)
+  // tenant cannot sign
+  const tsign = await tenants[0].client.post(`/api/assemblies/${asmId}/sign`, { legalConsent: true })
+  rec('assembly', 'арендатор не может подписать собрание', tsign.status === 403, `(http ${tsign.status})`)
+  // idempotency: double-sign one owner
+  const dblA = owners.find(o => o.verified)!
+  await dblA.client.post(`/api/assemblies/${asmId}/sign`, { legalConsent: true })
+  const asmSigCount = await prisma.assemblySignature.count({ where: { assemblyId: asmId } })
+  rec('assembly', 'реестр подписей собрания (идемпотентно)', asmSigCount === 45, `(${asmSigCount})`)
 
   // results / tally
   const resR = await adminC.get(`/api/assemblies/${asmId}/results`)
