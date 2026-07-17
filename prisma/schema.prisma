@@ -120,6 +120,7 @@ model User {
   ownershipDeclarations OwnershipDeclaration[]
   generatedDocuments    GeneratedDocument[]
   propertyOwnerships    PropertyOwnership[]
+  assemblySignatures    AssemblySignature[]
 }
 
 model Account {
@@ -446,9 +447,10 @@ model Assembly {
   updatedAt     DateTime       @updatedAt
   closedAt      DateTime?
 
-  org           Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdByUser User               @relation("AssemblyCreator", fields: [createdBy], references: [id])
+  org           Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdByUser User                @relation("AssemblyCreator", fields: [createdBy], references: [id])
   questions     AssemblyQuestion[]
+  signatures    AssemblySignature[]
 
   @@index([orgId, status])
   @@index([orgId, createdAt])
@@ -483,6 +485,23 @@ model AssemblyVote {
 
   @@unique([questionId, userId])
   @@index([questionId])
+}
+
+// ПЭП-подпись собрания через СМС (mirror of PetitionSignature). One per owner
+// per assembly; the protocol registry is built from these signatures.
+model AssemblySignature {
+  id           String   @id @default(cuid())
+  assemblyId   String
+  userId       String
+  verifiedVia  String
+  legalConsent Boolean  @default(false)
+  signedAt     DateTime @default(now())
+
+  assembly Assembly @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([assemblyId, userId])
+  @@index([assemblyId])
 }
 
 model PendingRegistration {

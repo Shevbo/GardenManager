@@ -60,9 +60,11 @@ type Props = {
   membership: { isOwner: boolean; areaSqm: number }
   myVotes: Array<{ questionId: string; choice: Choice; castAt: string }>
   results: AssemblyResults | null
+  hasSigned: boolean
+  signatureCount: number
 }
 
-export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, results }: Props) {
+export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, results, hasSigned, signatureCount }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const [choices, setChoices] = useState<Record<string, Choice>>(() => {
@@ -71,8 +73,29 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
     return init
   })
   const [voting, setVoting] = useState(false)
+  const [signing, setSigning] = useState(false)
   const [transitioning, setTransitioning] = useState(false)
   const [error, setError] = useState('')
+
+  // Sign the assembly protocol via SMS (ПЭП) — owners, while VOTING or CLOSED.
+  const canSign = membership.isOwner && !hasSigned && (assembly.status === 'VOTING' || assembly.status === 'CLOSED')
+  async function signAssembly() {
+    const ok = await confirm({
+      title: 'Подписать собрание через СМС?',
+      message: 'Простой электронной подписью (код из СМС на ваш подтверждённый номер) вы подтверждаете участие в собрании и голосовании. Подпись войдёт в реестр протокола (эквивалент собственноручной).',
+      confirmLabel: 'Подписать',
+    })
+    if (!ok) return
+    setSigning(true); setError('')
+    try {
+      const r = await fetch(`/api/assemblies/${assembly.id}/sign`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ legalConsent: true }),
+      })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); setError(d.error || 'Не удалось подписать'); return }
+      router.refresh()
+    } finally { setSigning(false) }
+  }
 
   const allAnswered = assembly.questions.every(q => choices[q.id])
   const hasExistingVote = myVotes.length > 0
@@ -316,6 +339,24 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SMS signing (ПЭП) — owners, during voting or after close */}
+      {membership.isOwner && (assembly.status === 'VOTING' || assembly.status === 'CLOSED') && (
+        <div className="bg-white border border-border rounded-2xl p-4 mt-5 flex items-center justify-between gap-3">
+          <div className="text-sm min-w-0">
+            <p className="font-medium text-ink">Подпись собрания (ПЭП через СМС)</p>
+            <p className="text-xs text-ink/50 mt-0.5">
+              Подписей в реестре: {signatureCount}{hasSigned ? ' · вы подписали это собрание' : ''}
+            </p>
+          </div>
+          {hasSigned
+            ? <span className="shrink-0 text-sm font-medium text-forest">✓ Подписано</span>
+            : <button onClick={signAssembly} disabled={signing || !canSign}
+                className="shrink-0 px-4 py-2 bg-forest text-white rounded-xl text-sm font-medium disabled:opacity-50">
+                {signing ? 'Подписываем…' : 'Подписать через СМС'}
+              </button>}
         </div>
       )}
 

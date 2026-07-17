@@ -37,6 +37,12 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
     select: { questionId: true, choice: true, castAt: true },
   })
 
+  const mySignature = await prisma.assemblySignature.findUnique({
+    where: { assemblyId_userId: { assemblyId: id, userId: session.user.id } },
+    select: { signedAt: true },
+  })
+  const signatureCount = await prisma.assemblySignature.count({ where: { assemblyId: id } })
+
   const results = assembly.status === 'CLOSED' ? await computeResults(id) : null
 
   return (
@@ -70,6 +76,8 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
           }}
           myVotes={myVotes.map(v => ({ questionId: v.questionId, choice: v.choice, castAt: v.castAt.toISOString() }))}
           results={results}
+          hasSigned={!!mySignature}
+          signatureCount={signatureCount}
         />
       </div>
       </div>
