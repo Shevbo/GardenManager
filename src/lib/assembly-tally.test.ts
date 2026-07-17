@@ -14,36 +14,42 @@ const vote = (
 const q = (id: string, requiredMajorityPct: number, majorityBasis?: TallyQuestion['majorityBasis']): TallyQuestion =>
   ({ id, text: id, order: 1, requiredMajorityPct, majorityBasis })
 
-describe('tallyAssembly — quorum (ЖК РФ ст.45)', () => {
-  it('reaches quorum on owner area share, not headcount', () => {
+// UNIT MODEL: PRIMARY = votes (one owner = one vote). Area is reference only.
+
+describe('tallyAssembly — quorum by VOTE COUNT (area = reference)', () => {
+  it('reaches quorum on owner vote count, not area', () => {
     const input: TallyInput = {
       quorumPercent: 50,
-      memberships: [owner(100), owner(100), owner(100), owner(100)], // 400 total
-      votes: [vote('q1', 'u1', 'FOR', 100), vote('q1', 'u2', 'FOR', 100), vote('q1', 'u3', 'AGAINST', 100)], // 300 voted
+      memberships: [owner(100), owner(100), owner(100), owner(50)], // 4 owners
+      votes: [vote('q1', 'u1', 'FOR', 100), vote('q1', 'u2', 'FOR', 100), vote('q1', 'u3', 'AGAINST', 100)], // 3 voted
       questions: [q('q1', 50)],
     }
     const r = tallyAssembly(input)
-    expect(r.totalEligibleArea).toBe(400)
-    expect(r.totalVotedArea).toBe(300)
-    expect(r.quorumPct).toBeCloseTo(75)
+    expect(r.totalEligibleCount).toBe(4)
+    expect(r.votedCount).toBe(3)
+    expect(r.quorumPct).toBeCloseTo(75) // 3/4 votes
     expect(r.quorumReached).toBe(true)
+    // area carried as reference
+    expect(r.totalEligibleArea).toBe(350)
+    expect(r.totalVotedArea).toBe(300)
+    expect(r.quorumAreaPct).toBeCloseTo(85.71, 1)
   })
 
-  it('does NOT reach quorum when participating owner area < threshold', () => {
+  it('does NOT reach quorum when too few owners vote (by count)', () => {
     const input: TallyInput = {
       quorumPercent: 50,
       memberships: [owner(100), owner(100), owner(100), owner(100)],
-      votes: [vote('q1', 'u1', 'FOR', 100)], // only 100/400 = 25%
+      votes: [vote('q1', 'u1', 'FOR', 100)], // 1/4 = 25%
       questions: [q('q1', 50)],
     }
     const r = tallyAssembly(input)
+    expect(r.quorumPct).toBeCloseTo(25)
     expect(r.quorumReached).toBe(false)
-    // quorum not reached ⇒ nothing passes even at 100% for
-    expect(r.questions[0].forPct).toBeCloseTo(100)
-    expect(r.questions[0].passed).toBe(false)
+    expect(r.questions[0].forPct).toBeCloseTo(100) // 1/1 for, but…
+    expect(r.questions[0].passed).toBe(false) // …quorum not reached
   })
 
-  it('counts each owner area once for quorum even if they vote on many questions', () => {
+  it('counts each owner once for quorum even if they vote on many questions', () => {
     const input: TallyInput = {
       quorumPercent: 50,
       memberships: [owner(100), owner(100)],
@@ -51,7 +57,7 @@ describe('tallyAssembly — quorum (ЖК РФ ст.45)', () => {
       questions: [q('q1', 50), q('q2', 50)],
     }
     const r = tallyAssembly(input)
-    expect(r.totalVotedArea).toBe(100) // u1 counted once, not 200
+    expect(r.votedCount).toBe(1) // u1 counted once
     expect(r.quorumPct).toBeCloseTo(50)
   })
 })
@@ -68,17 +74,18 @@ describe('tallyAssembly — eligibility (only owners count)', () => {
       questions: [q('q1', 50)],
     }
     const r = tallyAssembly(input)
-    expect(r.totalEligibleArea).toBe(200) // tenant area excluded
-    expect(r.totalVotedArea).toBe(100)
-    expect(r.questions[0].forArea).toBe(100) // tenant FOR not counted
+    expect(r.totalEligibleCount).toBe(2) // tenant excluded
+    expect(r.votedCount).toBe(1)
+    expect(r.questions[0].forVotes).toBe(1) // tenant FOR not counted
+    expect(r.questions[0].forArea).toBe(100)
   })
 })
 
 describe('tallyAssembly — abstentions', () => {
-  it('counts abstention toward quorum but never toward "for", and keeps it in the participating denominator', () => {
+  it('counts abstention toward quorum but never toward "for", and keeps it in the participating (votes) denominator', () => {
     const input: TallyInput = {
       quorumPercent: 50,
-      memberships: [owner(100), owner(100), owner(100)], // 300
+      memberships: [owner(100), owner(100), owner(100)],
       votes: [
         vote('q1', 'u1', 'FOR', 100),
         vote('q1', 'u2', 'FOR', 100),
@@ -87,136 +94,142 @@ describe('tallyAssembly — abstentions', () => {
       questions: [q('q1', 50, 'PARTICIPATING')],
     }
     const r = tallyAssembly(input)
-    expect(r.quorumReached).toBe(true) // all 3 participated
-    expect(r.questions[0].abstainArea).toBe(100)
-    expect(r.questions[0].forPct).toBeCloseTo(66.67, 1) // 200 / 300 participating
+    expect(r.quorumReached).toBe(true) // 3/3 participated
+    const t = r.questions[0]
+    expect(t.abstainVotes).toBe(1)
+    expect(t.participatingVotes).toBe(3)
+    expect(t.forPct).toBeCloseTo(66.67, 1) // 2/3 votes for
+    expect(t.forAreaPct).toBeCloseTo(66.67, 1) // area reference matches here
   })
 })
 
 describe('tallyAssembly — non-voters reported as reference only', () => {
-  it('reports notVotedArea/notVotedCount for owners who did not vote, NEVER in the denominator', () => {
+  it('reports notVotedCount/notVotedArea, NEVER in the denominator', () => {
     const input: TallyInput = {
       quorumPercent: 50,
-      memberships: [owner(100), owner(100), owner(100), owner(100)], // 400, 4 owners
-      votes: [
-        vote('q1', 'u1', 'FOR', 100),
-        vote('q1', 'u2', 'AGAINST', 100), // participating 200; u3,u4 did not vote
-      ],
+      memberships: [owner(100), owner(100), owner(100), owner(100)], // 4 owners
+      votes: [vote('q1', 'u1', 'FOR', 100), vote('q1', 'u2', 'AGAINST', 100)], // 2 voted; u3,u4 did not
       questions: [q('q1', 50, 'PARTICIPATING')],
     }
     const r = tallyAssembly(input)
     const t = r.questions[0]
-    expect(t.notVotedArea).toBe(200) // u3 + u4
     expect(t.notVotedCount).toBe(2)
-    expect(t.forPct).toBeCloseTo(50) // 100 / 200 participating — non-voters excluded from denominator
+    expect(t.notVotedArea).toBe(200)
+    expect(t.participatingVotes).toBe(2)
+    expect(t.forPct).toBeCloseTo(50) // 1/2 votes — non-voters excluded
   })
 })
 
-describe('tallyAssembly — majority basis (ЖК РФ ст.46)', () => {
-  it('ordinary question: simple majority of participants passes at >50%', () => {
+describe('tallyAssembly — majority by votes (ordinary + qualified)', () => {
+  it('ordinary question: simple majority of participants passes at >50% votes', () => {
     const input: TallyInput = {
       quorumPercent: 50,
       memberships: [owner(100), owner(100), owner(100), owner(100)],
       votes: [
         vote('q1', 'u1', 'FOR', 100),
         vote('q1', 'u2', 'FOR', 100),
-        vote('q1', 'u3', 'AGAINST', 100), // participating 300, for 200 = 66.7%
+        vote('q1', 'u3', 'AGAINST', 100), // 2/3 for
       ],
       questions: [q('q1', 50, 'PARTICIPATING')],
     }
     const r = tallyAssembly(input)
+    expect(r.questions[0].forPct).toBeCloseTo(66.67, 1)
     expect(r.questions[0].passed).toBe(true)
   })
 
-  it('Boris ruling: qualified 2/3 on the ACTIVE base passes; non-voters are reference-only', () => {
-    // 100 owners, 1 area each (total 100). Qualified question (2/3), DEFAULT basis.
-    // Active: 40 FOR, 5 AGAINST, 5 ABSTAIN (participating = 50). 50 did not vote.
-    const memberships: TallyMembership[] = Array.from({ length: 100 }, () => owner(1))
-    const votes: TallyVote[] = [
-      ...Array.from({ length: 40 }, (_, i) => vote('q1', `for${i}`, 'FOR', 1)),
-      ...Array.from({ length: 5 }, (_, i) => vote('q1', `ag${i}`, 'AGAINST', 1)),
-      ...Array.from({ length: 5 }, (_, i) => vote('q1', `ab${i}`, 'ABSTAIN', 1)),
-    ]
-    // No explicit majorityBasis → defaults to PARTICIPATING per Boris ruling.
-    const r = tallyAssembly({ quorumPercent: 50, memberships, votes, questions: [q('q1', TWO_THIRDS_PCT)] })
-    const t = r.questions[0]
-    expect(r.quorumReached).toBe(true) // 50/100 = 50% participated
-    expect(t.majorityBasis).toBe('PARTICIPATING')
-    expect(t.forPct).toBeCloseTo(80, 5) // 40 / 50 active ≥ 66.67
-    expect(t.passed).toBe(true)
-    expect(t.notVotedArea).toBe(50) // reference only
-    expect(t.notVotedCount).toBe(50)
-    // Same vote under the stricter explicit TOTAL basis would FAIL (40/100 = 40%).
-    const rTotal = tallyAssembly({ quorumPercent: 50, memberships, votes, questions: [q('q1', TWO_THIRDS_PCT, 'TOTAL')] })
-    expect(rTotal.questions[0].forPct).toBeCloseTo(40, 5)
-    expect(rTotal.questions[0].passed).toBe(false)
-  })
-
-  it('the two bases differ: a 2/3 question can pass on participants but FAIL on total owners', () => {
-    // 6 owners, 600 total area. Participants: o1,o2,o3 (450 area). FOR = o1+o2 = 350, AGAINST = o3 = 100.
-    //  participating basis: 350/450 = 77.8% ≥ 66.67 → PASS
-    //  total basis:         350/600 = 58.3% < 66.67  → FAIL
-    const memberships = [owner(200), owner(150), owner(100), owner(50), owner(50), owner(50)] // 600
-    const votes: TallyVote[] = [
-      vote('qp', 'o1', 'FOR', 200), vote('qp', 'o2', 'FOR', 150), vote('qp', 'o3', 'AGAINST', 100),
-      vote('qt', 'o1', 'FOR', 200), vote('qt', 'o2', 'FOR', 150), vote('qt', 'o3', 'AGAINST', 100),
-    ]
-    const r = tallyAssembly({
+  it('qualified 2/3: exactly 2/3 of participating votes PASSES', () => {
+    const input: TallyInput = {
       quorumPercent: 50,
-      memberships,
-      votes,
-      questions: [q('qp', 66.67, 'PARTICIPATING'), q('qt', 66.67, 'TOTAL')],
-    })
-    expect(r.quorumReached).toBe(true) // 450/600 = 75%
-    const part = r.questions.find(x => x.questionId === 'qp')!
-    const total = r.questions.find(x => x.questionId === 'qt')!
-    expect(part.forPct).toBeCloseTo(77.78, 1)
-    expect(part.passed).toBe(true)
-    expect(total.forPct).toBeCloseTo(58.33, 1)
-    expect(total.passed).toBe(false)
+      memberships: [owner(100), owner(100), owner(100)],
+      votes: [vote('q1', 'u1', 'FOR', 100), vote('q1', 'u2', 'FOR', 100), vote('q1', 'u3', 'AGAINST', 100)],
+      questions: [q('q1', TWO_THIRDS_PCT, 'PARTICIPATING')],
+    }
+    const r = tallyAssembly(input)
+    expect(r.questions[0].forPct).toBeCloseTo(66.67, 1) // 2/3 votes
+    expect(r.questions[0].passed).toBe(true)
   })
 
-  it('explicit TOTAL basis: exactly 2/3 of ALL owner area PASSES ("не менее двух третей")', () => {
-    const memberships = [owner(100), owner(100), owner(100), owner(100), owner(100), owner(100)] // 600
-    const votes: TallyVote[] = [
-      vote('q1', 'o1', 'FOR', 100), vote('q1', 'o2', 'FOR', 100), vote('q1', 'o3', 'FOR', 100),
-      vote('q1', 'o4', 'FOR', 100), vote('q1', 'o5', 'AGAINST', 100), // FOR 400/600 = exactly 2/3
-    ]
-    const r = tallyAssembly({ quorumPercent: 50, memberships, votes, questions: [q('q1', TWO_THIRDS_PCT, 'TOTAL')] })
-    expect(r.questions[0].forPct).toBeCloseTo(66.67, 1)
-    expect(r.questions[0].passed).toBe(true) // exact 2/3 must pass
-  })
-
-  it('explicit TOTAL basis: just under 2/3 of ALL owner area FAILS', () => {
-    const memberships = [owner(100), owner(100), owner(100), owner(100), owner(100), owner(150)] // 650
-    const votes: TallyVote[] = [
-      vote('q1', 'o1', 'FOR', 100), vote('q1', 'o2', 'FOR', 100), vote('q1', 'o3', 'FOR', 100),
-      vote('q1', 'o4', 'FOR', 100), vote('q1', 'o6', 'AGAINST', 150), // FOR 400/650 = 61.5% < 2/3
-    ]
-    const r = tallyAssembly({ quorumPercent: 50, memberships, votes, questions: [q('q1', TWO_THIRDS_PCT, 'TOTAL')] })
-    expect(r.questions[0].forPct).toBeLessThan(66.67)
+  it('qualified 2/3: just under 2/3 of participating votes FAILS', () => {
+    const input: TallyInput = {
+      quorumPercent: 50,
+      memberships: [owner(100), owner(100), owner(100), owner(100), owner(100)],
+      votes: [
+        vote('q1', 'u1', 'FOR', 100), vote('q1', 'u2', 'FOR', 100), vote('q1', 'u3', 'FOR', 100),
+        vote('q1', 'u4', 'AGAINST', 100), vote('q1', 'u5', 'AGAINST', 100), // 3/5 = 60%
+      ],
+      questions: [q('q1', TWO_THIRDS_PCT, 'PARTICIPATING')],
+    }
+    const r = tallyAssembly(input)
+    expect(r.questions[0].forPct).toBeCloseTo(60)
     expect(r.questions[0].passed).toBe(false)
   })
 
-  it('basisForThreshold: default basis is PARTICIPATING for ALL thresholds (Boris ruling — active base)', () => {
+  it('area is REFERENCE only: a multi-area owner does not outweigh vote count', () => {
+    // u1 owns a huge box (1000), u2 & u3 small (100). u1 FOR, u2+u3 AGAINST.
+    // by votes: 1 FOR / 3 = 33% → FAIL. by area it would be 1000/1200=83% → but area is not the basis.
+    const input: TallyInput = {
+      quorumPercent: 50,
+      memberships: [owner(1000), owner(100), owner(100), owner(100)],
+      votes: [vote('q1', 'u1', 'FOR', 1000), vote('q1', 'u2', 'AGAINST', 100), vote('q1', 'u3', 'AGAINST', 100)],
+      questions: [q('q1', 50, 'PARTICIPATING')],
+    }
+    const r = tallyAssembly(input)
+    const t = r.questions[0]
+    expect(t.forPct).toBeCloseTo(33.33, 1) // 1/3 votes → basis
+    expect(t.passed).toBe(false)
+    expect(t.forAreaPct).toBeCloseTo(83.33, 1) // reference only, does NOT decide
+  })
+
+  it('explicit TOTAL basis: denominator is ALL eligible owners (by count)', () => {
+    const input: TallyInput = {
+      quorumPercent: 50,
+      memberships: [owner(100), owner(100), owner(100), owner(100), owner(100), owner(100)], // 6 owners
+      votes: [
+        vote('q1', 'o1', 'FOR', 100), vote('q1', 'o2', 'FOR', 100), vote('q1', 'o3', 'FOR', 100),
+        vote('q1', 'o4', 'FOR', 100), vote('q1', 'o5', 'AGAINST', 100), // 4 FOR of 6 total = 66.7%
+      ],
+      questions: [q('q1', TWO_THIRDS_PCT, 'TOTAL')],
+    }
+    const r = tallyAssembly(input)
+    expect(r.questions[0].forPct).toBeCloseTo(66.67, 1) // 4/6 by count
+    expect(r.questions[0].passed).toBe(true)
+  })
+
+  it('basisForThreshold: default basis is PARTICIPATING for ALL thresholds', () => {
     expect(basisForThreshold(50)).toBe('PARTICIPATING')
-    expect(basisForThreshold(50.1)).toBe('PARTICIPATING')
-    expect(basisForThreshold(66)).toBe('PARTICIPATING')
-    expect(basisForThreshold(TWO_THIRDS_PCT)).toBe('PARTICIPATING') // qualified 2/3 now on active voters
-    expect(basisForThreshold(66.67)).toBe('PARTICIPATING')
-    expect(basisForThreshold(75)).toBe('PARTICIPATING')
+    expect(basisForThreshold(TWO_THIRDS_PCT)).toBe('PARTICIPATING')
     expect(basisForThreshold(100)).toBe('PARTICIPATING')
   })
 
-  it('defaults to PARTICIPATING basis when none is specified (backward-compatible)', () => {
+  it('defaults to PARTICIPATING basis when none specified', () => {
     const input: TallyInput = {
       quorumPercent: 50,
       memberships: [owner(100), owner(100)],
       votes: [vote('q1', 'u1', 'FOR', 100), vote('q1', 'u2', 'AGAINST', 100)],
-      questions: [{ id: 'q1', text: 'q1', order: 1, requiredMajorityPct: 50 }], // no basis
+      questions: [{ id: 'q1', text: 'q1', order: 1, requiredMajorityPct: 50 }],
     }
     const r = tallyAssembly(input)
     expect(r.questions[0].majorityBasis).toBe('PARTICIPATING')
-    expect(r.questions[0].forPct).toBeCloseTo(50) // 100/200 participating
+    expect(r.questions[0].forPct).toBeCloseTo(50) // 1/2 votes
+  })
+})
+
+describe('tallyAssembly — ГК «Щитовик» golden example (votes basis)', () => {
+  // 50 owners (1 vote each). Persona votes on a qualified (2/3) question:
+  //   FOR: P1(14)+P6(3)+P8(4)=21 ; ABSTAIN: P2(8)+P7(2)=10 ; AGAINST: P3(6)
+  //   P4(8) & P5(5) do not vote on the qualified question.
+  //   participating = 21+10+6 = 37 votes.  forPct = 21/37 = 56.8% < 66.67 → FAIL.
+  it('qualified question fails at 56.8% of participating votes; non-voters reference-only', () => {
+    const memberships: TallyMembership[] = Array.from({ length: 50 }, () => owner(18))
+    const mk = (n: number, choice: TallyVote['choice'], from: number) =>
+      Array.from({ length: n }, (_, i) => vote('q', `u${from + i}`, choice, 18))
+    const votes = [...mk(21, 'FOR', 0), ...mk(10, 'ABSTAIN', 21), ...mk(6, 'AGAINST', 31)] // 37 participate; 13 don't
+    const r = tallyAssembly({ quorumPercent: 50, memberships, votes, questions: [q('q', TWO_THIRDS_PCT)] })
+    const t = r.questions[0]
+    expect(r.quorumReached).toBe(true) // 37/50 = 74%
+    expect(t.participatingVotes).toBe(37)
+    expect(t.notVotedCount).toBe(13)
+    expect(t.forPct).toBeCloseTo(56.76, 1)
+    expect(t.passed).toBe(false)
   })
 })

@@ -34,6 +34,25 @@ export async function GET(
   const results = await computeResults(id)
   if (!results) return NextResponse.json({ error: 'No results' }, { status: 500 })
 
+  // Registry of electronic signatures (ПЭП): every owner who voted signed by
+  // casting from a phone-verified account. One entry per participant.
+  const voterRows = await prisma.assemblyVote.findMany({
+    where: { question: { assemblyId: id }, isOwner: true },
+    select: { userId: true, castAt: true, user: { select: { name: true, phoneVerified: true } } },
+    orderBy: { castAt: 'asc' },
+  })
+  const seen = new Set<string>()
+  const signatures: Array<{ name: string; via: string; at: Date | null }> = []
+  for (const v of voterRows) {
+    if (seen.has(v.userId)) continue
+    seen.add(v.userId)
+    signatures.push({
+      name: v.user?.name ?? '—',
+      via: v.user?.phoneVerified ? 'СМС (ПЭП)' : 'без верификации',
+      at: v.castAt,
+    })
+  }
+
   const pdf = await generateAssemblyProtocolPdf({
     assembly: {
       title: assembly.title,
@@ -49,8 +68,11 @@ export async function GET(
     questions: results.questions,
     quorumPct: results.quorumPct,
     quorumReached: results.quorumReached,
+    votedCount: results.votedCount,
+    totalEligibleCount: results.totalEligibleCount,
     totalEligibleArea: results.totalEligibleArea,
     totalVotedArea: results.totalVotedArea,
+    signatures,
   })
 
   return new NextResponse(pdf as unknown as BodyInit, {

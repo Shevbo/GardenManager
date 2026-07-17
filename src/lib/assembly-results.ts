@@ -7,25 +7,36 @@ export type QuestionResult = {
   order: number
   requiredMajorityPct: number
   majorityBasis: MajorityBasis
+  // PRIMARY — votes (голоса)
+  forVotes: number
+  againstVotes: number
+  abstainVotes: number
+  participatingVotes: number
+  notVotedCount: number // reference — eligible owners who did not vote
+  totalEligible: number
+  forPct: number // by votes — the pass/fail basis
+  // REFERENCE — area m² (shown in parentheses)
   forArea: number
   againstArea: number
   abstainArea: number
-  notVotedArea: number // reference only — eligible owner area that did not vote
-  notVotedCount: number // reference only — eligible owners who did not vote
-  totalVoted: number
-  totalEligible: number
+  notVotedArea: number
+  forAreaPct: number
   passed: boolean
-  forPct: number
 }
 
 export type AssemblyResults = {
   assemblyId: string
   status: string
   quorumPercent: number
-  totalEligibleArea: number
-  totalVotedArea: number
+  // PRIMARY — votes
+  totalEligibleCount: number
+  votedCount: number
   quorumReached: boolean
   quorumPct: number
+  // REFERENCE — area
+  totalEligibleArea: number
+  totalVotedArea: number
+  quorumAreaPct: number
   questions: QuestionResult[]
 }
 
@@ -81,25 +92,32 @@ export async function computeResults(assemblyId: string): Promise<AssemblyResult
     assemblyId,
     status: assembly.status,
     quorumPercent: t.quorumPercent,
-    totalEligibleArea: t.totalEligibleArea,
-    totalVotedArea: t.totalVotedArea,
+    totalEligibleCount: t.totalEligibleCount,
+    votedCount: t.votedCount,
     quorumReached: t.quorumReached,
     quorumPct: t.quorumPct,
+    totalEligibleArea: t.totalEligibleArea,
+    totalVotedArea: t.totalVotedArea,
+    quorumAreaPct: t.quorumAreaPct,
     questions: t.questions.map(q => ({
       questionId: q.questionId,
       text: q.text,
       order: q.order,
       requiredMajorityPct: q.requiredMajorityPct,
       majorityBasis: q.majorityBasis,
+      forVotes: q.forVotes,
+      againstVotes: q.againstVotes,
+      abstainVotes: q.abstainVotes,
+      participatingVotes: q.participatingVotes,
+      notVotedCount: q.notVotedCount,
+      totalEligible: q.totalEligibleCount,
+      forPct: q.forPct,
       forArea: q.forArea,
       againstArea: q.againstArea,
       abstainArea: q.abstainArea,
       notVotedArea: q.notVotedArea,
-      notVotedCount: q.notVotedCount,
-      totalVoted: q.totalVotedCount,
-      totalEligible: q.totalEligibleCount,
+      forAreaPct: q.forAreaPct,
       passed: q.passed,
-      forPct: q.forPct,
     })),
   }
 }

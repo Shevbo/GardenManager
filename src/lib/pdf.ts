@@ -121,20 +121,29 @@ interface AssemblyProtocolInput {
     order: number
     text: string
     requiredMajorityPct: number
+    forVotes: number
+    againstVotes: number
+    abstainVotes: number
+    participatingVotes: number
+    notVotedCount: number
+    forPct: number
     forArea: number
     againstArea: number
     abstainArea: number
-    forPct: number
+    notVotedArea: number
     passed: boolean
   }>
   quorumPct: number
   quorumReached: boolean
+  votedCount: number
+  totalEligibleCount: number
   totalEligibleArea: number
   totalVotedArea: number
+  signatures: Array<{ name: string; via: string; at: Date | null }>
 }
 
 function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
-  const { assembly, questions, quorumPct, quorumReached, totalEligibleArea, totalVotedArea } = input
+  const { assembly, questions, quorumPct, quorumReached, votedCount, totalEligibleCount, totalEligibleArea, totalVotedArea, signatures } = input
   const typeLabel = assembly.type === 'online' ? 'Очное / онлайн' : 'Заочное (сбор бюллетеней)'
 
   return createElement(Document, {},
@@ -161,7 +170,8 @@ function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
       createElement(View, { style: styles.section },
         createElement(Text, { style: styles.sectionTitle }, 'Кворум'),
         createElement(Text, {}, `Требуемый кворум: ${assembly.quorumPercent}%`),
-        createElement(Text, {}, `Площадь, представленная участниками: ${totalVotedArea.toFixed(2)} м² из ${totalEligibleArea.toFixed(2)} м² (${quorumPct.toFixed(1)}%)`),
+        createElement(Text, {}, `Проголосовало: ${votedCount} из ${totalEligibleCount} голосов (${quorumPct.toFixed(1)}%)`),
+        createElement(Text, { style: { color: '#555' } }, `Представленная площадь (справочно): ${totalVotedArea.toFixed(2)} м² из ${totalEligibleArea.toFixed(2)} м²`),
         createElement(Text, { style: { fontWeight: 'bold', marginTop: 4 } },
           quorumReached ? 'Кворум достигнут.' : 'Кворум НЕ достигнут.'),
       ),
@@ -172,18 +182,31 @@ function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
           createElement(View, { key: q.order, style: { marginBottom: 12 } },
             createElement(Text, { style: { fontWeight: 'bold' } }, `Вопрос ${q.order + 1}. ${q.text}`),
             createElement(Text, {}, `Требуемое большинство: ${q.requiredMajorityPct}%`),
-            createElement(Text, {}, `За: ${q.forArea.toFixed(2)} м² (${q.forPct.toFixed(1)}%)`),
-            createElement(Text, {}, `Против: ${q.againstArea.toFixed(2)} м²`),
-            createElement(Text, {}, `Воздержались: ${q.abstainArea.toFixed(2)} м²`),
+            createElement(Text, {}, `За: ${q.forVotes} голос. (${q.forArea.toFixed(2)} м²) — ${q.forPct.toFixed(1)}%`),
+            createElement(Text, {}, `Против: ${q.againstVotes} голос. (${q.againstArea.toFixed(2)} м²)`),
+            createElement(Text, {}, `Воздержались: ${q.abstainVotes} голос. (${q.abstainArea.toFixed(2)} м²)`),
+            createElement(Text, { style: { color: '#555' } }, `Не голосовали (справочно): ${q.notVotedCount} собств. (${q.notVotedArea.toFixed(2)} м²)`),
             createElement(Text, { style: { fontWeight: 'bold', marginTop: 2, color: q.passed ? '#0A3D2E' : '#B91C1C' } },
               q.passed ? 'РЕШЕНИЕ ПРИНЯТО' : 'РЕШЕНИЕ НЕ ПРИНЯТО'),
           )
         ),
       ),
 
+      createElement(View, { style: styles.section },
+        createElement(Text, { style: styles.sectionTitle }, `Реестр электронных подписей участников (${signatures.length})`),
+        createElement(Text, { style: { color: '#555', marginBottom: 4 } },
+          'Простая электронная подпись (ПЭП) — подтверждение участия голосованием с верифицированного номера телефона (ч.2 ст.5 № 63-ФЗ).'),
+        ...(signatures.length === 0
+          ? [createElement(Text, {}, 'Подписи отсутствуют.')]
+          : signatures.map((s, i) =>
+              createElement(Text, { key: i, style: { marginBottom: 1 } },
+                `${i + 1}. ${s.name} — ${s.via}${s.at ? `, ${s.at.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}` : ''}`)
+            )),
+      ),
+
       createElement(Text, { style: styles.disclaimer },
         'Протокол сформирован автоматически платформой Garden Manager (garden.shectory.ru). ' +
-        'Голоса учтены пропорционально площади собственности участников. ' +
+        'Голоса учтены по числу собственников (один собственник — один голос); площадь приведена справочно. ' +
         'Дата и время указаны по московскому времени.'
       ),
     )

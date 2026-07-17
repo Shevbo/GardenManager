@@ -18,7 +18,7 @@ import { PendingBadge } from './PendingBadge';
 
 const NAV_ITEMS = [
   { href: '/dashboard',         icon: LayoutDashboard, label: 'Главная' },
-  { href: '/assemblies',        icon: Vote,            label: 'Собрания',      comingSoon: true },
+  { href: '/assemblies',        icon: Vote,            label: 'Собрания' },
   { href: '/admin/petitions',   icon: FileSignature,   label: 'Заявления' },
   { href: '/documents',         icon: FileText,        label: 'Мои документы' },
   { href: '/activities',        icon: CheckSquare,     label: 'Активности',    comingSoon: true },

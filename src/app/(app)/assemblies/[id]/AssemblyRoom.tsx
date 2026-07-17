@@ -264,7 +264,7 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
                     <span className="text-ink/70">
                       «За» <span className="font-semibold">{result.forPct.toFixed(1)}%</span>
                       {' · '}
-                      {result.forArea.toFixed(1)} м² из {(result.forArea + result.againstArea + result.abstainArea).toFixed(1)} м²
+                      {result.forVotes} голос. ({result.forArea.toFixed(1)} м²) из {result.participatingVotes} ({(result.forArea + result.againstArea + result.abstainArea).toFixed(1)} м²)
                     </span>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                       result.passed ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-700'
@@ -273,14 +273,14 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
                     </span>
                   </div>
                   <div className="text-xs text-ink/60 grid grid-cols-3 gap-2">
-                    <div>За: {result.forArea.toFixed(1)} м²</div>
-                    <div>Против: {result.againstArea.toFixed(1)} м²</div>
-                    <div>Воздерж.: {result.abstainArea.toFixed(1)} м²</div>
+                    <div>За: {result.forVotes} гол. ({result.forArea.toFixed(1)} м²)</div>
+                    <div>Против: {result.againstVotes} гол. ({result.againstArea.toFixed(1)} м²)</div>
+                    <div>Воздерж.: {result.abstainVotes} гол. ({result.abstainArea.toFixed(1)} м²)</div>
                   </div>
                   <div className="text-xs text-ink/50">
-                    {result.majorityBasis === 'TOTAL' ? 'Считается от всех собственников' : 'Считается от проголосовавших'}
+                    {result.majorityBasis === 'TOTAL' ? 'От всех собственников' : 'От проголосовавших'}
                     {' · не голосовали (справочно): '}
-                    {result.notVotedArea.toFixed(1)} м² · {result.notVotedCount} соб.
+                    {result.notVotedCount} соб. ({result.notVotedArea.toFixed(1)} м²)
                   </div>
                   {myChoice && (
                     <div className="text-xs text-ink/50 pt-1">
@@ -309,9 +309,10 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
               </p>
             </div>
             <div>
-              <p className="text-ink/50 text-xs uppercase tracking-wider mb-1">Проголосовало площади</p>
+              <p className="text-ink/50 text-xs uppercase tracking-wider mb-1">Проголосовало</p>
               <p className="font-semibold">
-                {results.totalVotedArea.toFixed(1)} м² из {results.totalEligibleArea.toFixed(1)} м²
+                {results.votedCount} из {results.totalEligibleCount} голос.
+                <span className="text-ink/50 font-normal"> ({results.totalVotedArea.toFixed(0)} из {results.totalEligibleArea.toFixed(0)} м²)</span>
               </p>
             </div>
           </div>
@@ -322,7 +323,7 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
       {canVote && (
         <div className="sticky bottom-0 bg-cream/95 backdrop-blur border-t border-border -mx-8 px-8 py-3 mt-5 flex items-center justify-between gap-3">
           <p className="text-xs text-ink/60">
-            Ваш голос: {membership.areaSqm} м²
+            Ваш голос: 1 (площадь {membership.areaSqm} м²)
             {hasExistingVote && ' · уже проголосовали — можно изменить'}
           </p>
           {error && <p className="text-red-500 text-sm">{error}</p>}
