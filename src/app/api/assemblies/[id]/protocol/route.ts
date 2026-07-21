@@ -66,6 +66,7 @@ export async function GET(
     totalEligibleArea: results.totalEligibleArea,
     totalVotedArea: results.totalVotedArea,
     signatures,
+    documentId: id,
   })
 
   return new NextResponse(pdf as unknown as BodyInit, {

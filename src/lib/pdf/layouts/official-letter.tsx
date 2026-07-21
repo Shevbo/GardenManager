@@ -2,6 +2,7 @@ import { createElement, Fragment } from 'react'
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import type { RegistryRow } from '../types'
 import { RegistrySection } from '../components/registry'
+import { SignaturePlaque } from '../components/signature-plaque'
 import { fitTypography } from '../typography'
 
 const CM = 28.35 // 1cm in pt
@@ -66,6 +67,14 @@ export function OfficialLetter(props: OfficialLetterProps) {
       ),
       props.rows && props.rows.length
         ? createElement(RegistrySection, { rows: props.rows, masked: !!props.masked })
+        : null,
+      props.rows && props.rows.length
+        ? createElement(SignaturePlaque, {
+            kind: 'letter',
+            seed: props.docNumber || props.title,
+            count: props.rows.length,
+            date: props.date || '',
+          })
         : null,
       !props.hideFooter
         ? createElement(Text, { style: s.footer, fixed: true }, footerLeft)

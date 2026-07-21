@@ -8,6 +8,7 @@ import { measurePdf } from './pdf/measure'
 import { estimateLayout } from './pdf/typography'
 import type { SignatureInput } from './pdf/registry-data'
 import type { ViewerContext } from './pdf/types'
+import { SignaturePlaque } from './pdf/components/signature-plaque'
 
 export { buildRegistryRows }
 export type { RegistryRow } from './pdf/types'
@@ -140,11 +141,13 @@ interface AssemblyProtocolInput {
   totalEligibleArea: number
   totalVotedArea: number
   signatures: Array<{ name: string; via: string; at: Date | null }>
+  documentId: string
 }
 
 function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
-  const { assembly, questions, quorumPct, quorumReached, votedCount, totalEligibleCount, totalEligibleArea, totalVotedArea, signatures } = input
+  const { assembly, questions, quorumPct, quorumReached, votedCount, totalEligibleCount, totalEligibleArea, totalVotedArea, signatures, documentId } = input
   const typeLabel = assembly.type === 'online' ? 'Очное / онлайн' : 'Заочное (сбор бюллетеней)'
+  const issuedDate = (assembly.closedAt ?? assembly.endsAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' })
 
   return createElement(Document, {},
     createElement(Page, { size: 'A4', style: styles.page },
@@ -205,10 +208,11 @@ function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
       ),
 
       createElement(Text, { style: styles.disclaimer },
-        'Протокол сформирован автоматически платформой Garden Manager (garden.shectory.ru). ' +
         'Голоса учтены по числу собственников (один собственник — один голос); площадь приведена справочно. ' +
         'Дата и время указаны по московскому времени.'
       ),
+
+      createElement(SignaturePlaque, { kind: 'protocol', seed: documentId, count: signatures.length, date: issuedDate }),
     )
   )
 }

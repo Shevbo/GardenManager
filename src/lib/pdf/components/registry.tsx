@@ -19,7 +19,7 @@ const s = StyleSheet.create({
   addr: { width: '32%' }, date: { width: '16%' },
   header: { backgroundColor: '#EEE', fontWeight: 'bold' },
   note: { marginTop: 8, fontSize: 8.5, color: '#444', lineHeight: 1.4 },
-  plaque: { marginTop: 10, padding: 8, border: '1px solid #B8860B', backgroundColor: '#FCF6E3', fontSize: 8.5, lineHeight: 1.4, color: '#5A4A1A' },
+  plaque: { marginTop: 10, fontSize: 7.5, lineHeight: 1.4, color: '#888' },
   footnote: { marginTop: 8, fontSize: 7.5, color: '#777', lineHeight: 1.35 },
 })
 
