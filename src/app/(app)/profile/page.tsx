@@ -3,9 +3,11 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { ProfileForm } from './ProfileForm'
+import { NotifyPrefsForm } from './NotifyPrefsForm'
 import { OwnershipDeclareCard } from '@/components/profile/OwnershipDeclareCard'
 import { PropertyOwnershipSection } from '@/components/profile/PropertyOwnershipSection'
 import { LogoutButton } from '@/components/auth/LogoutButton'
+import { mergePrefs } from '@/lib/notify-labels'
 
 export default async function ProfilePage() {
   const session = await auth()
@@ -13,10 +15,12 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, phone: true, phoneVerified: true, emailVerified: true, address: true, contactDisclosure: true },
+    select: { name: true, email: true, phone: true, phoneVerified: true, emailVerified: true, address: true, contactDisclosure: true, notifyPrefs: true },
   })
 
   if (!user) redirect('/login')
+
+  const notifyPrefs = mergePrefs(user.notifyPrefs)
 
   const memberships = await prisma.membership.findMany({
     where: { userId: session.user.id },
@@ -58,6 +62,11 @@ export default async function ProfilePage() {
             </div>
           )}
           <PropertyOwnershipSection />
+        </section>
+
+        <section className="mt-6 max-w-2xl mx-auto">
+          <h2 className="font-display text-lg font-bold text-ink mb-3">Управление уведомлениями</h2>
+          <NotifyPrefsForm initial={notifyPrefs} />
         </section>
       </div>
     </div>

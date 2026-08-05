@@ -51,11 +51,14 @@ enum OrgGovRole {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  slug      String   @unique
+  id        String    @id @default(cuid())
+  slug      String    @unique
   name      String
   type      OrgType
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  // Soft-delete: a deleted org keeps its row so it never vanishes without a
+  // trace and can be restored. The who/when is recorded in AuditLog.
+  deletedAt DateTime?
 
   buildings       Building[]
   memberships     Membership[]
@@ -133,6 +136,15 @@ model User {
   propertyOwnerships    PropertyOwnership[]
   assemblySignatures    AssemblySignature[]
   orgRoleAssignments    OrgRoleAssignment[]
+  dmSent                DirectMessage[]        @relation("DMFrom")
+  dmReceived            DirectMessage[]        @relation("DMTo")
+  notifications         Notification[]
+  assemblyComments      AssemblyComment[]
+  assemblyTasks         AssemblyTask[]         @relation("TaskAssignee")
+
+  // Per-event notification preferences (in-app / email). JSON keyed by event
+  // type: { dm, org_chat, petition_status, assembly_status: {inApp, email} }.
+  notifyPrefs Json?
 }
 
 model Account {
@@ -465,6 +477,8 @@ model Assembly {
   createdByUser User                @relation("AssemblyCreator", fields: [createdBy], references: [id])
   questions     AssemblyQuestion[]
   signatures    AssemblySignature[]
+  comments      AssemblyComment[]
+  tasks         AssemblyTask[]
 
   @@index([orgId, status])
   @@index([orgId, createdAt])
@@ -613,6 +627,83 @@ model GeneratedDocument {
 
   @@index([userId])
   @@index([petitionId])
+}
+
+// 1:1 direct message between two users.
+model DirectMessage {
+  id         String    @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  text       String    @db.Text
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  fromUser User @relation("DMFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("DMTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, fromUserId, createdAt])
+  @@index([fromUserId, toUserId, createdAt])
+}
+
+// In-app notification (bell). type: 'dm' | 'org_chat' | 'petition_status' | 'assembly_status'.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  href      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+// Comment feed under an assembly announcement.
+model AssemblyComment {
+  id         String   @id @default(cuid())
+  assemblyId String
+  userId     String
+  text       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  assembly Assembly @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([assemblyId, createdAt])
+}
+
+// Action item ("поручение") tracked from an assembly protocol.
+model AssemblyTask {
+  id             String    @id @default(cuid())
+  assemblyId     String
+  text           String    @db.Text
+  assigneeUserId String?
+  dueDate        DateTime?
+  done           Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  assembly Assembly @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  assignee User?    @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+
+  @@index([assemblyId])
+}
+
+// Append-only audit trail for destructive/administrative actions.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String?
+  action    String
+  entity    String
+  entityId  String
+  snapshot  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
 // Governance position held by a user in an org. One holder per role per org.

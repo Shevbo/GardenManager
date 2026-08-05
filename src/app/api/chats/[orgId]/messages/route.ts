@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { requirePhoneVerified } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
+import { notifyOrgChat } from '@/lib/notify'
 
 export async function GET(
   req: NextRequest,
@@ -61,6 +62,11 @@ export async function POST(
     data: { orgId, userId: session.user.id, text: text.trim() },
     include: { user: { select: { id: true, name: true, email: true } } },
   })
+
+  // Notify the org's other members (respects each user's prefs).
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } })
+  const senderName = message.user.name || message.user.email || 'Участник'
+  await notifyOrgChat(orgId, session.user.id, org?.name ?? 'организация', senderName, message.text.slice(0, 120))
 
   return NextResponse.json(message, { status: 201 })
 }

@@ -4,22 +4,26 @@ import { Button } from '@/components/ui/Button'
 import { UserCog, ChevronRight } from 'lucide-react'
 import { GOV_ROLES, GOV_ROLE_LABELS, type RoleHolder } from '@/lib/org-roles-labels'
 
-/** «Участники и Роли» — governance positions of the active org with holders. */
+/** «Участники и Роли» — governance positions of the active org with holders.
+ *  A holder's name links to a 1:1 chat with that person (except yourself). */
 export function RolesPanel({
   roles,
   platformAdmins,
   isAdmin,
+  currentUserId,
 }: {
   roles: RoleHolder[]
   platformAdmins: Array<{ name: string | null }>
   isAdmin: boolean
+  currentUserId: string
 }) {
-  const holderOf = (role: string) => roles.find(r => r.role === role)?.userName ?? null
+  const holderOf = (role: string) => roles.find(r => r.role === role) ?? null
 
-  const rows: Array<{ label: string; holder: string | null; platform?: boolean }> = GOV_ROLES.map(role => ({
-    label: GOV_ROLE_LABELS[role],
-    holder: holderOf(role),
-  }))
+  const rows: Array<{ label: string; holder: string | null; userId?: string; platform?: boolean }> =
+    GOV_ROLES.map(role => {
+      const h = holderOf(role)
+      return { label: GOV_ROLE_LABELS[role], holder: h?.userName ?? null, userId: h?.userId }
+    })
   rows.push({
     label: 'Администратор платформы',
     holder: platformAdmins.map(a => a.name).filter(Boolean).join(', ') || null,
@@ -39,14 +43,23 @@ export function RolesPanel({
         )}
       </CardHeader>
       <CardBody className="grid grid-cols-2 gap-x-6 gap-y-2.5 py-4">
-        {rows.map(({ label, holder, platform }) => (
-          <div key={label} className="flex items-center justify-between gap-3 min-w-0">
-            <span className={`text-sm shrink-0 ${platform ? 'text-[#8A6D1F]' : 'text-[#6B6B63]'}`}>{label}</span>
-            <span className={`text-sm truncate text-right ${holder ? 'text-[#1A1A18] font-medium' : 'text-[#C0BBB0]'}`}>
-              {holder ?? '—'}
-            </span>
-          </div>
-        ))}
+        {rows.map(({ label, holder, userId, platform }) => {
+          const linkable = !!userId && userId !== currentUserId
+          return (
+            <div key={label} className="flex items-center justify-between gap-3 min-w-0">
+              <span className={`text-sm shrink-0 ${platform ? 'text-[#8A6D1F]' : 'text-[#6B6B63]'}`}>{label}</span>
+              {holder && linkable ? (
+                <Link href={`/chats/dm/${userId}`} className="text-sm truncate text-right text-[#0A3D2E] font-medium hover:underline">
+                  {holder}
+                </Link>
+              ) : (
+                <span className={`text-sm truncate text-right ${holder ? 'text-[#1A1A18] font-medium' : 'text-[#C0BBB0]'}`}>
+                  {holder ?? '—'}
+                </span>
+              )}
+            </div>
+          )
+        })}
       </CardBody>
     </Card>
   )

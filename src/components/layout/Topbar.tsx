@@ -1,5 +1,6 @@
 'use client';
-import { Bell, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 
 interface TopbarProps {
   title: string;
@@ -22,10 +23,7 @@ export function Topbar({ title, subtitle, actions }: TopbarProps) {
           <kbd className="ml-auto text-[10px] text-[#B0A898] bg-[#F0EDE6] px-1.5 py-0.5">⌘K</kbd>
         </button>
 
-        <button className="relative w-9 h-9 flex items-center justify-center bg-white border border-[#E0DBD0] hover:border-[#0A3D2E] transition-colors">
-          <Bell size={15} className="text-[#3D3D38]" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500" />
-        </button>
+        <NotificationBell />
 
         {actions}
       </div>

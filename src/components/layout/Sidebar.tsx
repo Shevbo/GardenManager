@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { href: '/admin/petitions',   icon: FileSignature,   label: 'Заявления' },
   { href: '/documents',         icon: FileText,        label: 'Мои документы' },
   { href: '/activities',        icon: CheckSquare,     label: 'Активности',    comingSoon: true },
-  { href: '/chats',             icon: MessageSquare,   label: 'Чаты',          comingSoon: true },
+  { href: '/chats',             icon: MessageSquare,   label: 'Чаты' },
 ];
 
 const BOTTOM_ITEMS = [

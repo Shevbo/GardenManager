@@ -144,7 +144,7 @@ export default async function DashboardPage() {
 
         {/* Roles & positions of the active org */}
         <div className="shrink-0">
-          <RolesPanel roles={govRoles} platformAdmins={platformAdmins} isAdmin={canManageRoles} />
+          <RolesPanel roles={govRoles} platformAdmins={platformAdmins} isAdmin={canManageRoles} currentUserId={userId} />
         </div>
 
         {/* 2-column layout */}
