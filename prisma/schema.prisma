@@ -59,6 +59,9 @@ model Organization {
   // Soft-delete: a deleted org keeps its row so it never vanishes without a
   // trace and can be restored. The who/when is recorded in AuditLog.
   deletedAt DateTime?
+  // Public profile of the org (shown on the group's home header).
+  description String? @db.Text
+  mapEmbedUrl String?
 
   buildings       Building[]
   memberships     Membership[]
@@ -69,6 +72,7 @@ model Organization {
   chatMessages    ChatMessage[]
   assemblies      Assembly[]
   roleAssignments OrgRoleAssignment[]
+  photos          OrgPhoto[]
 }
 
 model Building {
@@ -627,6 +631,22 @@ model GeneratedDocument {
 
   @@index([userId])
   @@index([petitionId])
+}
+
+// Photo in an org's gallery. Files live on disk (GARDEN_UPLOADS_DIR); `path` is
+// the relative key. Exactly one photo per org may be the cover.
+model OrgPhoto {
+  id        String   @id @default(cuid())
+  orgId     String
+  path      String
+  mime      String
+  isCover   Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, sortOrder])
 }
 
 // 1:1 direct message between two users.

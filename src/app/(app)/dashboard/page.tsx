@@ -14,6 +14,7 @@ import { OnboardingBanner } from '@/components/OnboardingBanner'
 import { getActiveMembership, getUserOrgs } from '@/lib/active-org'
 import { GroupTabs } from '@/components/dashboard/GroupTabs'
 import { RolesPanel } from '@/components/dashboard/RolesPanel'
+import { OrgHeader } from '@/components/dashboard/OrgHeader'
 import { getOrgRoles } from '@/lib/org-roles'
 import { getPlatformAdminUsers, isOrgAdmin } from '@/lib/permissions'
 
@@ -58,7 +59,7 @@ export default async function DashboardPage() {
 
   // Everything below is scoped to the ACTIVE group only — content of other
   // groups is never fetched here (isolation).
-  const [memberIds, petitions, mySignatures, govRoles, platformAdmins, canManageRoles] = await Promise.all([
+  const [memberIds, petitions, mySignatures, govRoles, platformAdmins, canManageRoles, coverPhoto] = await Promise.all([
     prisma.membership.findMany({ where: { orgId }, select: { userId: true }, distinct: ['userId'] }),
     prisma.petition.findMany({
       where: { orgId },
@@ -73,6 +74,7 @@ export default async function DashboardPage() {
     getOrgRoles(orgId),
     getPlatformAdminUsers(),
     isOrgAdmin(userId, orgId),
+    prisma.orgPhoto.findFirst({ where: { orgId, isCover: true }, select: { id: true } }),
   ])
   const memberCount = memberIds.length
 
@@ -94,6 +96,17 @@ export default async function DashboardPage() {
       {orgs.length > 1 && <GroupTabs orgs={orgs} activeOrgId={orgId} />}
 
       <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0">
+
+        {/* Org header — cover photo, description, map */}
+        <div className="shrink-0">
+          <OrgHeader
+            orgName={membership.org.name}
+            description={membership.org.description}
+            mapEmbedUrl={membership.org.mapEmbedUrl}
+            coverPhotoId={coverPhoto?.id ?? null}
+            canEdit={canManageRoles}
+          />
+        </div>
 
         {/* Onboarding banner */}
         {userProfile && (

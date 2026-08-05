@@ -192,11 +192,17 @@ export default function OrgTreePage() {
       <Link href="/admin/platform/orgs" className="text-sm text-forest hover:underline mb-4 inline-block">
         ← Все организации
       </Link>
-      <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold text-ink mb-1">{org.name}</h1>
-        <p className="text-ink/50 text-sm">
-          {org.type === 'zhk' ? 'ЖК' : 'Кооператив'} · slug <code className="text-xs">{org.slug}</code> · {org.buildings.length} здан. · {totalApartments} кв. · {totalMembers} участн.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink mb-1">{org.name}</h1>
+          <p className="text-ink/50 text-sm">
+            {org.type === 'zhk' ? 'ЖК' : 'Кооператив'} · slug <code className="text-xs">{org.slug}</code> · {org.buildings.length} здан. · {totalApartments} кв. · {totalMembers} участн.
+          </p>
+        </div>
+        <Link href={`/admin/org/profile?org=${orgId}`}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm font-medium text-forest hover:bg-forest/5">
+          Профиль (фото, карта, описание)
+        </Link>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div>}
