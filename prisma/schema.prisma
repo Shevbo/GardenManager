@@ -40,6 +40,16 @@ enum PendingStatus {
   REJECTED
 }
 
+// Org governance positions (distinct from Membership.role which is about
+// ownership / voting eligibility). Platform-admin is derived from email, not here.
+enum OrgGovRole {
+  chairman
+  vice_chairman
+  secretary
+  org_admin
+  accountant
+}
+
 model Organization {
   id        String   @id @default(cuid())
   slug      String   @unique
@@ -47,14 +57,15 @@ model Organization {
   type      OrgType
   createdAt DateTime @default(now())
 
-  buildings    Building[]
-  memberships  Membership[]
-  petitions    Petition[]
-  inviteLinks  InviteLink[]
-  orgGroups    OrgGroupMembership[]
-  activities   Activity[]
-  chatMessages ChatMessage[]
-  assemblies   Assembly[]
+  buildings       Building[]
+  memberships     Membership[]
+  petitions       Petition[]
+  inviteLinks     InviteLink[]
+  orgGroups       OrgGroupMembership[]
+  activities      Activity[]
+  chatMessages    ChatMessage[]
+  assemblies      Assembly[]
+  roleAssignments OrgRoleAssignment[]
 }
 
 model Building {
@@ -121,6 +132,7 @@ model User {
   generatedDocuments    GeneratedDocument[]
   propertyOwnerships    PropertyOwnership[]
   assemblySignatures    AssemblySignature[]
+  orgRoleAssignments    OrgRoleAssignment[]
 }
 
 model Account {
@@ -601,4 +613,21 @@ model GeneratedDocument {
 
   @@index([userId])
   @@index([petitionId])
+}
+
+// Governance position held by a user in an org. One holder per role per org.
+model OrgRoleAssignment {
+  id         String     @id @default(cuid())
+  orgId      String
+  role       OrgGovRole
+  userId     String
+  assignedAt DateTime   @default(now())
+  assignedBy String?
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, role])
+  @@index([orgId])
+  @@index([userId])
 }

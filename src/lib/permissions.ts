@@ -6,6 +6,21 @@ import prisma from '@/lib/prisma'
 // Additional admins can still be granted via a platform_admin membership role.
 const PLATFORM_ADMIN_EMAILS = new Set(['bshevelev75@gmail.com', 'bshevelev@mail.ru'])
 
+/** Platform admins for display (email-based owners + platform_admin memberships). */
+export async function getPlatformAdminUsers(): Promise<Array<{ id: string; name: string | null }>> {
+  const byEmail = await prisma.user.findMany({
+    where: { email: { in: [...PLATFORM_ADMIN_EMAILS] } },
+    select: { id: true, name: true },
+  })
+  const byRole = await prisma.user.findMany({
+    where: { memberships: { some: { role: 'platform_admin' } } },
+    select: { id: true, name: true },
+  })
+  const byId = new Map<string, { id: string; name: string | null }>()
+  for (const u of [...byEmail, ...byRole]) byId.set(u.id, u)
+  return [...byId.values()]
+}
+
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
   if (user?.email && PLATFORM_ADMIN_EMAILS.has(user.email.toLowerCase())) return true
@@ -13,6 +28,23 @@ export async function isPlatformAdmin(userId: string): Promise<boolean> {
     where: { userId, role: 'platform_admin' },
   })
   return !!m
+}
+
+/**
+ * Admin for a specific org: platform-admin, an admin-level Membership.role, or
+ * the `org_admin` governance position. Used to gate org-scoped management.
+ */
+export async function isOrgAdmin(userId: string, orgId: string): Promise<boolean> {
+  if (await isPlatformAdmin(userId)) return true
+  const m = await prisma.membership.findFirst({
+    where: { userId, orgId, role: { in: ['org_admin', 'coalition_admin', 'platform_admin'] } },
+    select: { id: true },
+  })
+  if (m) return true
+  const gov = await prisma.orgRoleAssignment.findFirst({
+    where: { userId, orgId, role: 'org_admin' }, select: { id: true },
+  })
+  return !!gov
 }
 
 /**

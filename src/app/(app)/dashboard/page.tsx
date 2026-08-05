@@ -13,6 +13,9 @@ import type { PetitionStatus } from '@/lib/petition-status'
 import { OnboardingBanner } from '@/components/OnboardingBanner'
 import { getActiveMembership, getUserOrgs } from '@/lib/active-org'
 import { GroupTabs } from '@/components/dashboard/GroupTabs'
+import { RolesPanel } from '@/components/dashboard/RolesPanel'
+import { getOrgRoles } from '@/lib/org-roles'
+import { getPlatformAdminUsers, isOrgAdmin } from '@/lib/permissions'
 
 function petitionHref(id: string, status: PetitionStatus): string {
   switch (status) {
@@ -55,7 +58,7 @@ export default async function DashboardPage() {
 
   // Everything below is scoped to the ACTIVE group only — content of other
   // groups is never fetched here (isolation).
-  const [memberIds, petitions, mySignatures] = await Promise.all([
+  const [memberIds, petitions, mySignatures, govRoles, platformAdmins, canManageRoles] = await Promise.all([
     prisma.membership.findMany({ where: { orgId }, select: { userId: true }, distinct: ['userId'] }),
     prisma.petition.findMany({
       where: { orgId },
@@ -67,6 +70,9 @@ export default async function DashboardPage() {
       where: { userId, petition: { orgId } },
       select: { petitionId: true },
     }),
+    getOrgRoles(orgId),
+    getPlatformAdminUsers(),
+    isOrgAdmin(userId, orgId),
   ])
   const memberCount = memberIds.length
 
@@ -135,6 +141,11 @@ export default async function DashboardPage() {
             </Link>
           </div>
         )}
+
+        {/* Roles & positions of the active org */}
+        <div className="shrink-0">
+          <RolesPanel roles={govRoles} platformAdmins={platformAdmins} isAdmin={canManageRoles} />
+        </div>
 
         {/* 2-column layout */}
         <div className="flex gap-5 flex-1 min-h-0">
