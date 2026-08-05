@@ -26,16 +26,14 @@ async function main() {
     },
   })
 
-  await prisma.membership.upsert({
-    where: { userId_orgId: { userId: admin.id, orgId: org.id } },
-    update: {},
-    create: {
-      userId: admin.id,
-      orgId: org.id,
-      role: 'org_admin',
-      isOwner: false,
-    },
+  const existingMembership = await prisma.membership.findFirst({
+    where: { userId: admin.id, orgId: org.id },
   })
+  if (!existingMembership) {
+    await prisma.membership.create({
+      data: { userId: admin.id, orgId: org.id, role: 'org_admin', isOwner: false },
+    })
+  }
 
   console.log('Admin:', admin.email)
 

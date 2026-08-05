@@ -70,16 +70,19 @@ export async function POST(
       apartmentId = apt.id
     }
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: reg.userId },
-        data: { status: 'ACTIVE' },
-      }),
-      ...(building.orgId
-        ? [prisma.membership.upsert({
-            where: { userId_orgId: { userId: reg.userId, orgId: building.orgId } },
-            update: { apartmentId, areaSqm: reg.areaSqm ?? undefined },
-            create: {
+    // Membership op — owners may hold several apartments, so match on apartment.
+    let memberOp: ReturnType<typeof prisma.membership.create> | ReturnType<typeof prisma.membership.update> | null = null
+    if (building.orgId) {
+      const existingMem = await prisma.membership.findFirst({
+        where: { userId: reg.userId, orgId: building.orgId, apartmentId },
+      })
+      memberOp = existingMem
+        ? prisma.membership.update({
+            where: { id: existingMem.id },
+            data: { apartmentId, areaSqm: reg.areaSqm ?? undefined, isOwner: reg.isOwner },
+          })
+        : prisma.membership.create({
+            data: {
               userId: reg.userId,
               orgId: building.orgId,
               apartmentId,
@@ -87,8 +90,15 @@ export async function POST(
               isOwner: reg.isOwner,
               areaSqm: reg.areaSqm ?? undefined,
             },
-          })]
-        : []),
+          })
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: reg.userId },
+        data: { status: 'ACTIVE' },
+      }),
+      ...(memberOp ? [memberOp] : []),
       prisma.pendingRegistration.update({
         where: { id: reg.id },
         data: { status: 'APPROVED', reviewedBy: session.user.id, reviewedAt: new Date() },

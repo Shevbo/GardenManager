@@ -68,12 +68,11 @@ export async function seedQa(prisma: PrismaClient): Promise<QaData> {
       update: { name: `QA User ${n}`, phone, phoneVerified: p.verified ? new Date() : null, emailVerified: new Date(), status: 'ACTIVE', address: `QA адрес ${n}, кв. ${p.apt ?? '-'}` },
       create: { email, name: `QA User ${n}`, phone, phoneVerified: p.verified ? new Date() : null, emailVerified: new Date(), status: 'ACTIVE', address: `QA адрес ${n}, кв. ${p.apt ?? '-'}` },
     })
-    // Membership (unique userId+orgId)
-    const mem = await prisma.membership.upsert({
-      where: { userId_orgId: { userId: user.id, orgId: org.id } },
-      update: { role: p.role, apartmentId: aptId, isOwner: p.role === 'owner', areaSqm },
-      create: { userId: user.id, orgId: org.id, role: p.role, apartmentId: aptId, isOwner: p.role === 'owner', areaSqm, verifiedAt: new Date() },
-    })
+    // Membership (one per apartment)
+    const existingMem = await prisma.membership.findFirst({ where: { userId: user.id, orgId: org.id, apartmentId: aptId } })
+    const mem = existingMem
+      ? await prisma.membership.update({ where: { id: existingMem.id }, data: { role: p.role, apartmentId: aptId, isOwner: p.role === 'owner', areaSqm } })
+      : await prisma.membership.create({ data: { userId: user.id, orgId: org.id, role: p.role, apartmentId: aptId, isOwner: p.role === 'owner', areaSqm, verifiedAt: new Date() } })
     if (p.declared) {
       const has = await prisma.ownershipDeclaration.findFirst({ where: { membershipId: mem.id } })
       if (!has) await prisma.ownershipDeclaration.create({ data: { userId: user.id, membershipId: mem.id, areaSqm, declaredText: 'QA декларация собственности', smsToken: 'qa-seed' } })

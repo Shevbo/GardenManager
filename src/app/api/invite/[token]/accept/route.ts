@@ -26,9 +26,9 @@ export async function POST(
   // invite is non-null here
   const validInvite = invite!
 
-  // Check if user is already a member of this org
-  const existing = await prisma.membership.findUnique({
-    where: { userId_orgId: { userId: session.user.id, orgId: validInvite.orgId } },
+  // Already a member for this specific apartment? (owners may hold several)
+  const existing = await prisma.membership.findFirst({
+    where: { userId: session.user.id, orgId: validInvite.orgId, apartmentId: validInvite.apartmentId ?? null },
   })
 
   const [membership] = await prisma.$transaction([
