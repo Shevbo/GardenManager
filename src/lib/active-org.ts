@@ -1,32 +1,58 @@
 import { cookies } from 'next/headers'
 import prisma from './prisma'
 
-const COOKIE_NAME = 'garden_active_org'
+const COOKIE_NAME = 'garden_active_membership'
+/** Legacy cookie held an orgId; honoured as a group hint during rollover. */
+const LEGACY_COOKIE_NAME = 'garden_active_org'
+
+const ACTIVE_INCLUDE = { org: true, apartment: true } as const
 
 /**
- * The user's active group. The cookie wins (if the user is still a member);
- * otherwise defaults to their first group. Never returns null when the user has
- * at least one membership — every screen must be scoped to a concrete group so
- * content of other groups never leaks (isolation).
+ * The user's active MEMBERSHIP (a specific apartment in a specific group).
+ *
+ * A user may own several apartments in the SAME group (one membership each), so
+ * the active scope must be a membership — keying it on orgId alone collapses two
+ * apartments of one group into the same view and makes the left-nav switcher a
+ * no-op. The cookie wins (if the membership still belongs to the user); otherwise
+ * we fall back deterministically to the user's first membership. Never returns
+ * null when the user has at least one membership — every screen must be scoped to
+ * a concrete group so other groups' content never leaks (isolation).
  */
-export async function getActiveOrgId(userId: string): Promise<string | null> {
+export async function getActiveMembership(userId: string) {
   const store = await cookies()
-  const fromCookie = store.get(COOKIE_NAME)?.value
 
-  if (fromCookie) {
+  const cookieId = store.get(COOKIE_NAME)?.value
+  if (cookieId) {
     const m = await prisma.membership.findFirst({
-      where: { userId, orgId: fromCookie },
-      select: { orgId: true },
+      where: { id: cookieId, userId },
+      include: ACTIVE_INCLUDE,
     })
-    if (m) return m.orgId
+    if (m) return m
   }
 
-  const first = await prisma.membership.findFirst({
+  const legacyOrgId = store.get(LEGACY_COOKIE_NAME)?.value
+  if (legacyOrgId) {
+    const m = await prisma.membership.findFirst({
+      where: { userId, orgId: legacyOrgId },
+      orderBy: { id: 'asc' },
+      include: ACTIVE_INCLUDE,
+    })
+    if (m) return m
+  }
+
+  return prisma.membership.findFirst({
     where: { userId },
-    select: { orgId: true },
-    orderBy: { orgId: 'asc' },
+    orderBy: { id: 'asc' },
+    include: ACTIVE_INCLUDE,
   })
-  return first?.orgId ?? null
+}
+
+/**
+ * The org of the user's active membership. Kept for all org-scoped screens
+ * (assemblies, petitions) which do not care which apartment is active.
+ */
+export async function getActiveOrgId(userId: string): Promise<string | null> {
+  return (await getActiveMembership(userId))?.orgId ?? null
 }
 
 export async function getUserOrgIds(userId: string): Promise<string[]> {

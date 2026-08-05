@@ -11,7 +11,7 @@ import { formatDate } from '@/lib/utils'
 import { Users, FileText, Pen, CheckCircle2, ChevronRight, Plus, Clock } from 'lucide-react'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { OnboardingBanner } from '@/components/OnboardingBanner'
-import { getActiveOrgId, getUserOrgs } from '@/lib/active-org'
+import { getActiveMembership, getUserOrgs } from '@/lib/active-org'
 import { GroupTabs } from '@/components/dashboard/GroupTabs'
 
 function petitionHref(id: string, status: PetitionStatus): string {
@@ -36,14 +36,9 @@ export default async function DashboardPage() {
     select: { name: true, phoneVerified: true, address: true },
   })
 
-  const [activeOrgId, orgs] = await Promise.all([getActiveOrgId(userId), getUserOrgs(userId)])
-
-  const membership = activeOrgId
-    ? await prisma.membership.findFirst({
-        where: { userId, orgId: activeOrgId },
-        include: { org: true, apartment: true },
-      })
-    : null
+  // Active MEMBERSHIP (a specific apartment) — not just the org, so owners with
+  // several apartments in one group can switch between them from the left nav.
+  const [membership, orgs] = await Promise.all([getActiveMembership(userId), getUserOrgs(userId)])
 
   if (!membership) {
     return (
@@ -90,7 +85,7 @@ export default async function DashboardPage() {
     <div className="flex flex-col" style={{ height: '100vh' }}>
       <Topbar title="Главная" subtitle={subtitle} />
 
-      {orgs.length > 1 && <GroupTabs orgs={orgs} activeOrgId={activeOrgId} />}
+      {orgs.length > 1 && <GroupTabs orgs={orgs} activeOrgId={orgId} />}
 
       <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0">
 

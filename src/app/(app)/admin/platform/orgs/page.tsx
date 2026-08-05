@@ -11,6 +11,8 @@ interface Org {
   _count: { memberships: number; petitions: number; buildings: number }
 }
 
+interface Blocker { type: string; count: number; label: string; href: string }
+
 const TYPE_LABEL: Record<Org['type'], string> = {
   zhk: 'ЖК',
   kooperativ: 'Кооператив',
@@ -25,6 +27,7 @@ export default function PlatformOrgsPage() {
   const [type, setType] = useState<Org['type']>('zhk')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const [blockers, setBlockers] = useState<Blocker[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editType, setEditType] = useState<Org['type']>('zhk')
@@ -43,7 +46,7 @@ export default function PlatformOrgsPage() {
   async function create(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim() || creating) return
-    setCreating(true); setError('')
+    setCreating(true); setError(''); setBlockers([])
     try {
       const res = await fetch('/api/admin/platform/orgs', {
         method: 'POST',
@@ -62,7 +65,7 @@ export default function PlatformOrgsPage() {
 
   function startEdit(o: Org, e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation()
-    setEditingId(o.id); setEditName(o.name); setEditType(o.type); setError('')
+    setEditingId(o.id); setEditName(o.name); setEditType(o.type); setError(''); setBlockers([])
   }
 
   async function saveEdit(orgId: string) {
@@ -81,11 +84,13 @@ export default function PlatformOrgsPage() {
   async function remove(orgId: string, orgName: string, e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation()
     if (!(await confirm({ title: 'Удалить организацию?', message: `«${orgName}»\n\nУдаление возможно только при отсутствии зависимостей (зданий, участников, заявлений, собраний).`, confirmLabel: 'Удалить', tone: 'danger' }))) return
-    setError('')
+    setError(''); setBlockers([])
     const res = await fetch(`/api/admin/platform/orgs/${orgId}`, { method: 'DELETE' })
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      setError(d.error || 'Не удалось удалить'); return
+      setError(d.error || 'Не удалось удалить')
+      setBlockers(Array.isArray(d.blockers) ? d.blockers : [])
+      return
     }
     await load()
   }
@@ -137,7 +142,19 @@ export default function PlatformOrgsPage() {
       )}
 
       {error && !showForm && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div>
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
+          <p>{error}</p>
+          {blockers.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {blockers.map(b => (
+                <a key={b.type} href={b.href}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-red-200 text-red-700 hover:bg-red-100 font-medium text-xs">
+                  {b.label} →
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {orgs.length === 0 ? (

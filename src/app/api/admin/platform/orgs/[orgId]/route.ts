@@ -61,14 +61,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ orgI
     prisma.assembly.count({ where: { orgId } }),
   ])
 
-  const blockers: string[] = []
-  if (memberships > 0) blockers.push(`${memberships} участн.`)
-  if (buildings > 0) blockers.push(`${buildings} здан.`)
-  if (petitions > 0) blockers.push(`${petitions} заявл.`)
-  if (assemblies > 0) blockers.push(`${assemblies} собран.`)
+  // Return the blockers as structured links so the admin can jump straight to
+  // the data holding the org (instead of a dead-end count). Petitions first —
+  // it is the usual blocker and the only one with a dedicated repository UI.
+  const blockers: Array<{ type: string; count: number; label: string; href: string }> = []
+  if (petitions > 0) blockers.push({ type: 'petitions', count: petitions, label: `${petitions} заявл.`, href: `/admin/platform/petitions?org=${orgId}` })
+  if (memberships > 0) blockers.push({ type: 'memberships', count: memberships, label: `${memberships} участн.`, href: `/admin/platform/members?org=${orgId}` })
+  if (buildings > 0) blockers.push({ type: 'buildings', count: buildings, label: `${buildings} здан.`, href: `/admin/platform/orgs/${orgId}` })
+  if (assemblies > 0) blockers.push({ type: 'assemblies', count: assemblies, label: `${assemblies} собран.`, href: `/admin/platform/orgs/${orgId}` })
   if (blockers.length > 0) {
     return NextResponse.json(
-      { error: `Сначала удалите связанные: ${blockers.join(', ')}` },
+      { error: `Сначала удалите связанные данные: ${blockers.map(b => b.label).join(', ')}`, blockers },
       { status: 409 },
     )
   }
