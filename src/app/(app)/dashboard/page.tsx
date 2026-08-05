@@ -11,6 +11,8 @@ import { formatDate } from '@/lib/utils'
 import { Users, FileText, Pen, CheckCircle2, ChevronRight, Plus, Clock } from 'lucide-react'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { OnboardingBanner } from '@/components/OnboardingBanner'
+import { getActiveOrgId, getUserOrgs } from '@/lib/active-org'
+import { GroupTabs } from '@/components/dashboard/GroupTabs'
 
 function petitionHref(id: string, status: PetitionStatus): string {
   switch (status) {
@@ -34,10 +36,14 @@ export default async function DashboardPage() {
     select: { name: true, phoneVerified: true, address: true },
   })
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId },
-    include: { org: true, apartment: true },
-  })
+  const [activeOrgId, orgs] = await Promise.all([getActiveOrgId(userId), getUserOrgs(userId)])
+
+  const membership = activeOrgId
+    ? await prisma.membership.findFirst({
+        where: { userId, orgId: activeOrgId },
+        include: { org: true, apartment: true },
+      })
+    : null
 
   if (!membership) {
     return (
@@ -52,8 +58,10 @@ export default async function DashboardPage() {
 
   const orgId = membership.orgId
 
-  const [memberCount, petitions, mySignatures] = await Promise.all([
-    prisma.membership.count({ where: { orgId } }),
+  // Everything below is scoped to the ACTIVE group only — content of other
+  // groups is never fetched here (isolation).
+  const [memberIds, petitions, mySignatures] = await Promise.all([
+    prisma.membership.findMany({ where: { orgId }, select: { userId: true }, distinct: ['userId'] }),
     prisma.petition.findMany({
       where: { orgId },
       orderBy: { createdAt: 'desc' },
@@ -61,10 +69,11 @@ export default async function DashboardPage() {
       include: { _count: { select: { signatures: true, comments: true } } },
     }),
     prisma.petitionSignature.findMany({
-      where: { userId },
+      where: { userId, petition: { orgId } },
       select: { petitionId: true },
     }),
   ])
+  const memberCount = memberIds.length
 
   const signedIds = new Set(mySignatures.map(s => s.petitionId))
   const signingPetitions = petitions.filter(p => p.status === 'SIGNING')
@@ -80,6 +89,8 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col" style={{ height: '100vh' }}>
       <Topbar title="Главная" subtitle={subtitle} />
+
+      {orgs.length > 1 && <GroupTabs orgs={orgs} activeOrgId={activeOrgId} />}
 
       <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0">
 

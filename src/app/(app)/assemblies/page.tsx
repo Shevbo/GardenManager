@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { Plus, Vote, Calendar } from 'lucide-react'
+import { getActiveOrgId } from '@/lib/active-org'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,15 +22,16 @@ export default async function AssembliesPage() {
   const session = await auth()
   if (!session?.user) redirect('/login')
 
+  // Scope to the ACTIVE group only — never show assemblies of other groups.
+  const activeOrgId = await getActiveOrgId(session.user.id)
   const memberships = await prisma.membership.findMany({
-    where: { userId: session.user.id },
-    select: { orgId: true, role: true },
+    where: { userId: session.user.id, orgId: activeOrgId ?? undefined },
+    select: { role: true },
   })
-  const orgIds = memberships.map(m => m.orgId)
   const isAdmin = memberships.some(m => ADMIN_ROLES.includes(m.role))
 
-  const assemblies = orgIds.length === 0 ? [] : await prisma.assembly.findMany({
-    where: { orgId: { in: orgIds } },
+  const assemblies = !activeOrgId ? [] : await prisma.assembly.findMany({
+    where: { orgId: activeOrgId },
     orderBy: { createdAt: 'desc' },
     include: { org: { select: { name: true } }, _count: { select: { questions: true } } },
   })
