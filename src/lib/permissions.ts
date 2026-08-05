@@ -6,7 +6,14 @@ import prisma from '@/lib/prisma'
 // Additional admins can still be granted via a platform_admin membership role.
 const PLATFORM_ADMIN_EMAILS = new Set(['bshevelev75@gmail.com', 'bshevelev@mail.ru'])
 
-/** Platform admins for display (email-based owners + platform_admin memberships). */
+/** Normalized full-name key (case/ё-insensitive, word-order-insensitive) so the
+ *  same person holding several accounts collapses to one entry. */
+function nameKey(name: string | null): string {
+  return (name ?? '').toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(Boolean).sort().join(' ')
+}
+
+/** Platform admins for display (email-based owners + platform_admin memberships),
+ *  deduped by identity AND by normalized name (one human = one row). */
 export async function getPlatformAdminUsers(): Promise<Array<{ id: string; name: string | null }>> {
   const byEmail = await prisma.user.findMany({
     where: { email: { in: [...PLATFORM_ADMIN_EMAILS] } },
@@ -18,7 +25,16 @@ export async function getPlatformAdminUsers(): Promise<Array<{ id: string; name:
   })
   const byId = new Map<string, { id: string; name: string | null }>()
   for (const u of [...byEmail, ...byRole]) byId.set(u.id, u)
-  return [...byId.values()]
+
+  const seenName = new Set<string>()
+  const out: Array<{ id: string; name: string | null }> = []
+  for (const u of byId.values()) {
+    const k = nameKey(u.name)
+    if (k && seenName.has(k)) continue
+    if (k) seenName.add(k)
+    out.push(u)
+  }
+  return out
 }
 
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
