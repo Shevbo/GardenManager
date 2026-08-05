@@ -30,6 +30,12 @@ export default async function PlatformAdminIndex() {
       description: 'ЖК / гаражи / другие. Создание, редактирование, удаление.',
     },
     {
+      href: '/admin/platform/org-types',
+      icon: Tag,
+      title: 'Типы организаций',
+      description: 'Справочник видов: ЖК, ГК, ТСЖ и т.д. Добавление, переименование, деактивация.',
+    },
+    {
       href: '/admin/platform/org-groups',
       icon: Users,
       title: 'Группы организаций',

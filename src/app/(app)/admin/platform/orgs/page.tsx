@@ -6,40 +6,47 @@ import { useConfirm } from '@/components/ui/dialog'
 interface Org {
   id: string
   name: string
-  type: 'zhk' | 'kooperativ'
+  type: string
   slug: string
   _count: { memberships: number; petitions: number; buildings: number }
 }
 
 interface Blocker { type: string; count: number; label: string; href: string }
-interface DeletedOrg { id: string; name: string; type: 'zhk' | 'kooperativ'; deletedAt: string }
-
-const TYPE_LABEL: Record<Org['type'], string> = {
-  zhk: 'ЖК',
-  kooperativ: 'Кооператив',
-}
+interface DeletedOrg { id: string; name: string; type: string; deletedAt: string }
+interface OrgType { code: string; label: string }
 
 export default function PlatformOrgsPage() {
   const confirm = useConfirm()
   const [orgs, setOrgs] = useState<Org[]>([])
+  const [types, setTypes] = useState<OrgType[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
-  const [type, setType] = useState<Org['type']>('zhk')
+  const [type, setType] = useState<string>('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [blockers, setBlockers] = useState<Blocker[]>([])
   const [deleted, setDeleted] = useState<DeletedOrg[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
-  const [editType, setEditType] = useState<Org['type']>('zhk')
+  const [editType, setEditType] = useState<string>('')
+
+  const labelOf = useCallback((code: string) => types.find(t => t.code === code)?.label ?? code, [types])
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/admin/platform/orgs')
+    const [res, tRes] = await Promise.all([
+      fetch('/api/admin/platform/orgs'),
+      fetch('/api/org-types'),
+    ])
     if (res.ok) {
       const data = await res.json() as { orgs: Org[]; deleted?: DeletedOrg[] }
       setOrgs(data.orgs)
       setDeleted(data.deleted ?? [])
+    }
+    if (tRes.ok) {
+      const td = await tRes.json() as { types: OrgType[] }
+      setTypes(td.types)
+      setType(prev => prev || td.types[0]?.code || '')
     }
     setLoading(false)
   }, [])
@@ -70,7 +77,7 @@ export default function PlatformOrgsPage() {
         const d = await res.json().catch(() => ({}))
         setError(d.error || 'Не удалось создать')
       } else {
-        setName(''); setType('zhk'); setShowForm(false)
+        setName(''); setType(types[0]?.code ?? ''); setShowForm(false)
         await load()
       }
     } finally { setCreating(false) }
@@ -135,10 +142,9 @@ export default function PlatformOrgsPage() {
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder="Название (например, ЖК «Садовый»)" required
             className="w-full px-3 py-2 border border-border rounded-xl text-sm" />
-          <select value={type} onChange={e => setType(e.target.value as Org['type'])}
+          <select value={type} onChange={e => setType(e.target.value)}
             className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-white">
-            <option value="zhk">ЖК</option>
-            <option value="kooperativ">Кооператив</option>
+            {types.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
           </select>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-2">
@@ -183,10 +189,9 @@ export default function PlatformOrgsPage() {
                 <div key={org.id} className="bg-white border-2 border-forest rounded-2xl p-4 space-y-2">
                   <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
                     className="w-full px-3 py-2 border border-border rounded-xl text-sm" />
-                  <select value={editType} onChange={e => setEditType(e.target.value as Org['type'])}
+                  <select value={editType} onChange={e => setEditType(e.target.value)}
                     className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-white">
-                    <option value="zhk">ЖК</option>
-                    <option value="kooperativ">Кооператив</option>
+                    {types.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
                   </select>
                   <div className="flex gap-2">
                     <button onClick={() => saveEdit(org.id)}
@@ -211,7 +216,7 @@ export default function PlatformOrgsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-ink truncate">{org.name}</p>
                     <p className="text-xs text-ink/50 mt-0.5">
-                      {TYPE_LABEL[org.type]} · {org._count.memberships} участн. · {org._count.buildings} объект. · {org._count.petitions} заявл.
+                      {labelOf(org.type)} · {org._count.memberships} участн. · {org._count.buildings} объект. · {org._count.petitions} заявл.
                     </p>
                   </div>
                   <code className="text-xs text-ink/40 font-mono shrink-0">{org.slug}</code>
@@ -244,7 +249,7 @@ export default function PlatformOrgsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-ink/70 truncate">{o.name}</p>
                   <p className="text-xs text-ink/40 mt-0.5">
-                    {TYPE_LABEL[o.type]} · удалена {new Date(o.deletedAt).toLocaleDateString('ru-RU')}
+                    {labelOf(o.type)} · удалена {new Date(o.deletedAt).toLocaleDateString('ru-RU')}
                   </p>
                 </div>
                 <button onClick={() => restore(o.id)}

@@ -7,16 +7,24 @@ type Photo = { id: string; isCover: boolean }
 
 export function OrgProfileEditor({
   orgId,
+  initialName,
+  initialType,
+  orgTypes,
   initialDescription,
   initialMapEmbedUrl,
   initialPhotos,
 }: {
   orgId: string
+  initialName: string
+  initialType: string
+  orgTypes: Array<{ code: string; label: string }>
   initialDescription: string
   initialMapEmbedUrl: string
   initialPhotos: Photo[]
 }) {
   const router = useRouter()
+  const [name, setName] = useState(initialName)
+  const [type, setType] = useState(initialType)
   const [description, setDescription] = useState(initialDescription)
   const [mapEmbedUrl, setMapEmbedUrl] = useState(initialMapEmbedUrl)
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos)
@@ -31,7 +39,7 @@ export function OrgProfileEditor({
     try {
       const r = await fetch('/api/admin/org/profile', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, description, mapEmbedUrl }),
+        body: JSON.stringify({ orgId, name, type, description, mapEmbedUrl }),
       })
       if (!r.ok) { const d = await r.json().catch(() => ({})); setError(d.error || 'Не удалось сохранить'); return }
       setSavedText(true); router.refresh()
@@ -82,8 +90,23 @@ export function OrgProfileEditor({
     <div className="space-y-6">
       {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div>}
 
-      {/* Description + map */}
+      {/* Name + type + description + map */}
       <div className="bg-white border border-border rounded-2xl p-5 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-ink mb-1.5">Название</label>
+            <input value={name} onChange={e => { setName(e.target.value); setSavedText(false) }}
+              className="w-full px-3 py-2 border border-border rounded-xl text-sm focus:outline-none focus:border-forest" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink mb-1.5">Тип</label>
+            <select value={type} onChange={e => { setType(e.target.value); setSavedText(false) }}
+              className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-white focus:outline-none focus:border-forest">
+              {!orgTypes.some(t => t.code === type) && <option value={type}>{type}</option>}
+              {orgTypes.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+            </select>
+          </div>
+        </div>
         <div>
           <label className="block text-sm font-medium text-ink mb-1.5">Описание</label>
           <textarea value={description} maxLength={4000} rows={5}

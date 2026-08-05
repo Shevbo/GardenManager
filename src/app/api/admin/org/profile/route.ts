@@ -25,12 +25,20 @@ export async function PATCH(req: NextRequest) {
 
   let body: unknown
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const { orgId, description, mapEmbedUrl } = body as { orgId?: string; description?: string | null; mapEmbedUrl?: string | null }
+  const { orgId, name, type, description, mapEmbedUrl } = body as { orgId?: string; name?: string; type?: string; description?: string | null; mapEmbedUrl?: string | null }
 
   if (!orgId) return NextResponse.json({ error: 'orgId required' }, { status: 400 })
   if (!(await isOrgAdmin(session.user.id, orgId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const data: { description?: string | null; mapEmbedUrl?: string | null } = {}
+  const data: { name?: string; type?: string; description?: string | null; mapEmbedUrl?: string | null } = {}
+
+  if (typeof name === 'string' && name.trim()) data.name = name.trim()
+
+  if (type !== undefined) {
+    const ref = await prisma.orgTypeRef.findFirst({ where: { code: type, active: true }, select: { code: true } })
+    if (!ref) return NextResponse.json({ error: 'Неизвестный тип организации' }, { status: 400 })
+    data.type = ref.code
+  }
 
   if (description !== undefined) {
     if (description && description.length > 4000) {
@@ -53,7 +61,7 @@ export async function PATCH(req: NextRequest) {
 
   const org = await prisma.organization.update({
     where: { id: orgId }, data,
-    select: { id: true, description: true, mapEmbedUrl: true },
+    select: { id: true, name: true, type: true, description: true, mapEmbedUrl: true },
   })
   return NextResponse.json({ org })
 }

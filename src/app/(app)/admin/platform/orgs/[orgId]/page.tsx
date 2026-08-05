@@ -29,6 +29,7 @@ export default function OrgTreePage() {
   const params = useParams<{ orgId: string }>()
   const orgId = params.orgId
   const [org, setOrg] = useState<OrgTree | null>(null)
+  const [types, setTypes] = useState<Array<{ code: string; label: string }>>([])
   const [loading, setLoading] = useState(true)
   const [openBuildings, setOpenBuildings] = useState<Set<string>>(new Set())
   const [openApartments, setOpenApartments] = useState<Set<string>>(new Set())
@@ -47,10 +48,17 @@ export default function OrgTreePage() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/admin/platform/orgs/${orgId}/tree`)
+    const [res, tRes] = await Promise.all([
+      fetch(`/api/admin/platform/orgs/${orgId}/tree`),
+      fetch('/api/org-types'),
+    ])
     if (res.ok) {
       const data = await res.json() as { org: OrgTree }
       setOrg(data.org)
+    }
+    if (tRes.ok) {
+      const td = await tRes.json() as { types: Array<{ code: string; label: string }> }
+      setTypes(td.types)
     }
     setLoading(false)
   }, [orgId])
@@ -196,7 +204,7 @@ export default function OrgTreePage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-ink mb-1">{org.name}</h1>
           <p className="text-ink/50 text-sm">
-            {org.type === 'zhk' ? 'ЖК' : 'Кооператив'} · slug <code className="text-xs">{org.slug}</code> · {org.buildings.length} здан. · {totalApartments} кв. · {totalMembers} участн.
+            {types.find(t => t.code === org.type)?.label ?? org.type} · slug <code className="text-xs">{org.slug}</code> · {org.buildings.length} здан. · {totalApartments} кв. · {totalMembers} участн.
           </p>
         </div>
         <Link href={`/admin/org/profile?org=${orgId}`}

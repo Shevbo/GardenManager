@@ -56,9 +56,9 @@ export async function POST(req: NextRequest) {
 
   const { name, type } = body as { name?: string; type?: string }
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
-  if (type !== 'zhk' && type !== 'kooperativ') {
-    return NextResponse.json({ error: 'invalid type' }, { status: 400 })
-  }
+  if (!type) return NextResponse.json({ error: 'type required' }, { status: 400 })
+  const typeRef = await prisma.orgTypeRef.findFirst({ where: { code: type, active: true }, select: { code: true } })
+  if (!typeRef) return NextResponse.json({ error: 'Неизвестный тип организации' }, { status: 400 })
 
   let slug = slugify(name) || 'org'
   const existing = await prisma.organization.findUnique({ where: { slug } })

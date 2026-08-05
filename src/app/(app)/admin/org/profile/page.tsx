@@ -19,13 +19,16 @@ export default async function OrgProfilePage({ searchParams }: { searchParams: P
   if (!orgId) redirect('/dashboard')
   if (!(await isOrgAdmin(userId, orgId))) redirect('/dashboard')
 
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    select: {
-      id: true, name: true, description: true, mapEmbedUrl: true,
-      photos: { orderBy: { sortOrder: 'asc' }, select: { id: true, isCover: true } },
-    },
-  })
+  const [org, orgTypes] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: {
+        id: true, name: true, type: true, description: true, mapEmbedUrl: true,
+        photos: { orderBy: { sortOrder: 'asc' }, select: { id: true, isCover: true } },
+      },
+    }),
+    prisma.orgTypeRef.findMany({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }], select: { code: true, label: true } }),
+  ])
   if (!org) redirect('/dashboard')
 
   return (
@@ -38,6 +41,9 @@ export default async function OrgProfilePage({ searchParams }: { searchParams: P
 
       <OrgProfileEditor
         orgId={org.id}
+        initialName={org.name}
+        initialType={org.type}
+        orgTypes={orgTypes}
         initialDescription={org.description ?? ''}
         initialMapEmbedUrl={org.mapEmbedUrl ?? ''}
         initialPhotos={org.photos}

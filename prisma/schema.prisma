@@ -6,9 +6,16 @@ datasource db {
   provider = "postgresql"
 }
 
-enum OrgType {
-  zhk
-  kooperativ
+// Organization types are a managed directory now (see OrgTypeRef);
+// Organization.type stores a OrgTypeRef.code string.
+model OrgTypeRef {
+  code      String   @id
+  label     String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([active, sortOrder])
 }
 
 enum Role {
@@ -54,7 +61,7 @@ model Organization {
   id        String    @id @default(cuid())
   slug      String    @unique
   name      String
-  type      OrgType
+  type      String
   createdAt DateTime  @default(now())
   // Soft-delete: a deleted org keeps its row so it never vanishes without a
   // trace and can be restored. The who/when is recorded in AuditLog.

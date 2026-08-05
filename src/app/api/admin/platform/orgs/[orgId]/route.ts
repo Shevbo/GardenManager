@@ -24,9 +24,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
   }
   const { name, type, slug } = body as { name?: string; type?: string; slug?: string }
 
-  const data: { name?: string; type?: 'zhk' | 'kooperativ'; slug?: string } = {}
+  const data: { name?: string; type?: string; slug?: string } = {}
   if (typeof name === 'string' && name.trim()) data.name = name.trim()
-  if (type === 'zhk' || type === 'kooperativ') data.type = type
+  if (typeof type === 'string' && type) {
+    const ref = await prisma.orgTypeRef.findFirst({ where: { code: type, active: true }, select: { code: true } })
+    if (!ref) return NextResponse.json({ error: 'Неизвестный тип организации' }, { status: 400 })
+    data.type = ref.code
+  }
   if (typeof slug === 'string' && slug.trim()) data.slug = slugify(slug) || undefined
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'nothing to update' }, { status: 400 })
