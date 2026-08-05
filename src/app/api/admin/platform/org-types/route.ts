@@ -33,8 +33,9 @@ export async function POST(req: NextRequest) {
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
   const { code, label, sortOrder } = body as { code?: string; label?: string; sortOrder?: number }
   if (!label?.trim()) return NextResponse.json({ error: 'label required' }, { status: 400 })
-  const c = normCode(code || label)
-  if (!c) return NextResponse.json({ error: 'Некорректный код' }, { status: 400 })
+  // Derive a code from the (possibly Cyrillic) label; fall back to a generated
+  // code so a Russian-only label with no explicit code still works.
+  const c = normCode(code || label) || `t${Date.now().toString(36)}`
 
   const exists = await prisma.orgTypeRef.findUnique({ where: { code: c }, select: { code: true } })
   if (exists) return NextResponse.json({ error: 'Такой код уже есть' }, { status: 409 })
