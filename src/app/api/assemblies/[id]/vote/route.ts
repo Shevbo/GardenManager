@@ -41,14 +41,17 @@ export async function POST(
     return NextResponse.json({ error: 'Voting period inactive' }, { status: 400 })
   }
 
-  const membership = await prisma.membership.findFirst({
+  // A voter may hold several apartments (memberships) in the org — treat them as
+  // one owner whose area is the SUM across their objects.
+  const memberships = await prisma.membership.findMany({
     where: { userId: session.user.id, orgId: assembly.orgId },
+    select: { isOwner: true, areaSqm: true },
   })
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  if (!membership.isOwner) {
+  if (memberships.length === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!memberships.some(m => m.isOwner)) {
     return NextResponse.json({ error: 'Only owners can vote' }, { status: 403 })
   }
-  const areaSqm = membership.areaSqm ?? 0
+  const areaSqm = memberships.reduce((s, m) => s + (m.areaSqm ?? 0), 0)
   if (areaSqm <= 0) {
     return NextResponse.json({ error: 'Membership area is not set (admin must verify your area)' }, { status: 400 })
   }

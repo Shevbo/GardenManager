@@ -177,7 +177,9 @@ model Membership {
   apartment             Apartment?             @relation(fields: [apartmentId], references: [id])
   ownershipDeclarations OwnershipDeclaration[]
 
-  @@unique([userId, orgId])
+  // Owners may hold several objects in one org — one membership per apartment.
+  @@unique([userId, orgId, apartmentId])
+  @@index([userId, orgId])
   @@index([orgId])
   @@index([apartmentId])
 }

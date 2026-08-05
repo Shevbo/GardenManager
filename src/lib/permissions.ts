@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
+// Platform owner accounts — ALWAYS platform-admin, independent of any org
+// membership (Boris must reach «Управление» regardless of group inclusion).
+// Additional admins can still be granted via a platform_admin membership role.
+const PLATFORM_ADMIN_EMAILS = new Set(['bshevelev75@gmail.com', 'bshevelev@mail.ru'])
+
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+  if (user?.email && PLATFORM_ADMIN_EMAILS.has(user.email.toLowerCase())) return true
   const m = await prisma.membership.findFirst({
     where: { userId, role: 'platform_admin' },
   })

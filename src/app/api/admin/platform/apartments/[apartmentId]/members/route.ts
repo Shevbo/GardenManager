@@ -2,15 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Role } from '@prisma/client'
-
-const PLATFORM_ADMIN_ROLES: Role[] = ['platform_admin', 'coalition_admin']
-
-async function isPlatformAdmin(userId: string): Promise<boolean> {
-  const m = await prisma.membership.findFirst({
-    where: { userId, role: { in: PLATFORM_ADMIN_ROLES } },
-  })
-  return !!m
-}
+import { isPlatformAdmin } from '@/lib/permissions'
 
 export async function POST(
   req: NextRequest,
@@ -48,11 +40,13 @@ export async function POST(
   })
   if (!user?.id) return NextResponse.json({ error: 'Пользователь с таким email не найден' }, { status: 404 })
 
+  // Owners may hold several objects in one org (one membership per apartment) —
+  // reject only a duplicate in THIS apartment, not anywhere in the org.
   const existing = await prisma.membership.findFirst({
-    where: { userId: user.id, orgId: orgId ?? undefined },
+    where: { userId: user.id, orgId: orgId ?? undefined, apartmentId },
   })
   if (existing) {
-    return NextResponse.json({ error: 'Пользователь уже является участником этой организации' }, { status: 409 })
+    return NextResponse.json({ error: 'Этот участник уже привязан к данной квартире' }, { status: 409 })
   }
 
   const roleValue = (role as Role) ?? 'owner'

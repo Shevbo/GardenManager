@@ -51,10 +51,20 @@ export async function computeResults(assemblyId: string): Promise<AssemblyResult
   })
   if (!assembly) return null
 
-  const eligibleMemberships = await prisma.membership.findMany({
+  const eligibleRaw = await prisma.membership.findMany({
     where: { orgId: assembly.orgId },
-    select: { areaSqm: true, isOwner: true },
+    select: { userId: true, areaSqm: true, isOwner: true },
   })
+  // One eligible entry per DISTINCT user — an owner holding several apartments is
+  // still one owner/one vote (Boris ruling). Sum their area; owner if any is owner.
+  const byUser = new Map<string, { areaSqm: number; isOwner: boolean }>()
+  for (const m of eligibleRaw) {
+    const e = byUser.get(m.userId) ?? { areaSqm: 0, isOwner: false }
+    e.areaSqm += m.areaSqm ?? 0
+    e.isOwner = e.isOwner || m.isOwner
+    byUser.set(m.userId, e)
+  }
+  const eligibleMemberships = Array.from(byUser.values())
 
   const allVotes = await prisma.assemblyVote.findMany({
     where: { question: { assemblyId } },
