@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Building2, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Plus, Building2, Pencil, Trash2, Check, X, RotateCcw } from 'lucide-react'
 import { useConfirm } from '@/components/ui/dialog'
 
 interface Org {
@@ -12,6 +12,7 @@ interface Org {
 }
 
 interface Blocker { type: string; count: number; label: string; href: string }
+interface DeletedOrg { id: string; name: string; type: 'zhk' | 'kooperativ'; deletedAt: string }
 
 const TYPE_LABEL: Record<Org['type'], string> = {
   zhk: 'ЖК',
@@ -28,6 +29,7 @@ export default function PlatformOrgsPage() {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [blockers, setBlockers] = useState<Blocker[]>([])
+  const [deleted, setDeleted] = useState<DeletedOrg[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editType, setEditType] = useState<Org['type']>('zhk')
@@ -35,11 +37,22 @@ export default function PlatformOrgsPage() {
   const load = useCallback(async () => {
     const res = await fetch('/api/admin/platform/orgs')
     if (res.ok) {
-      const data = await res.json() as { orgs: Org[] }
+      const data = await res.json() as { orgs: Org[]; deleted?: DeletedOrg[] }
       setOrgs(data.orgs)
+      setDeleted(data.deleted ?? [])
     }
     setLoading(false)
   }, [])
+
+  async function restore(orgId: string) {
+    setError('')
+    const res = await fetch(`/api/admin/platform/orgs/${orgId}/restore`, { method: 'POST' })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error || 'Не удалось восстановить'); return
+    }
+    await load()
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -216,6 +229,31 @@ export default function PlatformOrgsPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {deleted.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xs uppercase tracking-wide text-ink/50 mb-3">Недавно удалённые</h2>
+          <div className="space-y-2">
+            {deleted.map(o => (
+              <div key={o.id} className="bg-[#F7F5F0] border border-border rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-ink/5 flex items-center justify-center shrink-0">
+                  <Building2 size={18} className="text-ink/40" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-ink/70 truncate">{o.name}</p>
+                  <p className="text-xs text-ink/40 mt-0.5">
+                    {TYPE_LABEL[o.type]} · удалена {new Date(o.deletedAt).toLocaleDateString('ru-RU')}
+                  </p>
+                </div>
+                <button onClick={() => restore(o.id)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-medium text-forest hover:bg-forest/5 transition-colors">
+                  <RotateCcw size={14} /> Восстановить
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

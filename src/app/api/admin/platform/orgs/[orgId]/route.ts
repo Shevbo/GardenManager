@@ -76,6 +76,31 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ orgI
     )
   }
 
-  await prisma.organization.delete({ where: { id: orgId } })
+  // Soft-delete (never lose the org silently): snapshot to the audit log, mark
+  // deletedAt, and free the slug so it can be reused. Restorable from the trash.
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { id: true, name: true, slug: true, type: true, createdAt: true },
+  })
+  if (!org) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (org.slug.includes('__del_')) return NextResponse.json({ ok: true }) // already soft-deleted
+
+  const actor = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true, email: true } })
+  await prisma.$transaction([
+    prisma.auditLog.create({
+      data: {
+        actorId: session.user.id,
+        actorName: actor?.name || actor?.email || null,
+        action: 'org.soft_delete',
+        entity: 'Organization',
+        entityId: orgId,
+        snapshot: { ...org, createdAt: org.createdAt.toISOString() },
+      },
+    }),
+    prisma.organization.update({
+      where: { id: orgId },
+      data: { deletedAt: new Date(), slug: `${org.slug}__del_${Date.now().toString(36)}` },
+    }),
+  ])
   return NextResponse.json({ ok: true })
 }

@@ -11,18 +11,26 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const orgs = await prisma.organization.findMany({
-    orderBy: { name: 'asc' },
-    select: {
-      id: true,
-      name: true,
-      type: true,
-      slug: true,
-      _count: { select: { memberships: true, petitions: true, buildings: true } },
-    },
-  })
+  const [orgs, deleted] = await Promise.all([
+    prisma.organization.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        slug: true,
+        _count: { select: { memberships: true, petitions: true, buildings: true } },
+      },
+    }),
+    prisma.organization.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: { id: true, name: true, type: true, deletedAt: true },
+    }),
+  ])
 
-  return NextResponse.json({ orgs })
+  return NextResponse.json({ orgs, deleted })
 }
 
 function slugify(s: string): string {

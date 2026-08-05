@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { requirePhoneVerified } from '@/lib/permissions'
+import { requirePhoneVerified, isPlatformAdmin } from '@/lib/permissions'
+import { getUserGovRoles } from '@/lib/org-roles'
+import { notifyAssemblyStatus } from '@/lib/notify'
 import prisma from '@/lib/prisma'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Черновик', ANNOUNCED: 'Объявлено', VOTING: 'Идёт голосование', CLOSED: 'Закрыто',
+}
 
 export async function GET(
   _req: NextRequest,
@@ -53,8 +58,22 @@ export async function PATCH(
   const membership = await prisma.membership.findFirst({
     where: { userId: session.user.id, orgId: assembly.orgId },
   })
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  // Governance gate: the chairman/deputy (or an admin) APPROVE formal actions —
+  // announcing the agenda and closing the assembly. The secretary may prepare
+  // and publish but not close. Platform-admin and admin memberships keep access.
+  const [platAdmin, govRoles] = await Promise.all([
+    isPlatformAdmin(session.user.id),
+    getUserGovRoles(session.user.id, assembly.orgId),
+  ])
+  const isChair = govRoles.includes('chairman') || govRoles.includes('vice_chairman')
+  const isSecretary = govRoles.includes('secretary')
+  const isAdminRole = platAdmin || ADMIN_ROLES.includes(membership.role) || govRoles.includes('org_admin')
+  const canApprove = isChair || isAdminRole
+  const canPublish = canApprove || isSecretary
+  if (!canPublish) {
+    return NextResponse.json({ error: 'Формальные действия по собранию доступны председателю, секретарю или администратору' }, { status: 403 })
   }
 
   const { status, confirm } = body as {
@@ -62,6 +81,11 @@ export async function PATCH(
     confirm?: boolean
   }
   if (!status) return NextResponse.json({ error: 'status required' }, { status: 400 })
+
+  // Closing is an approval action — chairman/deputy or admin only (not secretary).
+  if (status === 'CLOSED' && !canApprove) {
+    return NextResponse.json({ error: 'Закрыть собрание может только председатель или администратор' }, { status: 403 })
+  }
 
   // GARD-3 HITL fail-closed: closing an assembly is irreversible (no transition
   // out of CLOSED) and triggers the official protocol. Never act without an
@@ -96,5 +120,9 @@ export async function PATCH(
       ...(status === 'CLOSED' ? { closedAt: new Date() } : {}),
     },
   })
+
+  // Notify the org's members of the status change (respects their prefs).
+  await notifyAssemblyStatus(assembly.orgId, session.user.id, id, assembly.title, STATUS_LABEL[status] ?? status)
+
   return NextResponse.json(updated)
 }

@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { AssemblyRoom } from './AssemblyRoom'
 import { computeResults } from '@/lib/assembly-results'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
+import { isPlatformAdmin } from '@/lib/permissions'
+import { getUserGovRoles } from '@/lib/org-roles'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
@@ -29,7 +31,15 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
   })
   if (!membership) redirect('/assemblies')
 
-  const isAdmin = ADMIN_ROLES.includes(membership.role)
+  const [platAdmin, govRoles] = await Promise.all([
+    isPlatformAdmin(session.user.id),
+    getUserGovRoles(session.user.id, assembly.orgId),
+  ])
+  const isChair = govRoles.includes('chairman') || govRoles.includes('vice_chairman')
+  const isSecretary = govRoles.includes('secretary')
+  const isAdminRole = platAdmin || ADMIN_ROLES.includes(membership.role) || govRoles.includes('org_admin')
+  const canApprove = isChair || isAdminRole      // approve / close
+  const isAdmin = canApprove || isSecretary       // see & operate the controls
   const canVote = !!membership.isOwner && (membership.areaSqm ?? 0) > 0 && assembly.status === 'VOTING'
 
   const myVotes = await prisma.assemblyVote.findMany({
@@ -69,6 +79,8 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
             questions: assembly.questions,
           }}
           isAdmin={isAdmin}
+          canApprove={canApprove}
+          currentUserId={session.user.id}
           canVote={canVote}
           membership={{
             isOwner: !!membership.isOwner,

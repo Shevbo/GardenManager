@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { ThumbsUp, ThumbsDown, Minus, Calendar, Users, FileText, Download } from 'lucide-react'
 import { useConfirm } from '@/components/ui/dialog'
 import type { QuestionResult, AssemblyResults } from '@/lib/assembly-results'
+import { AssemblyComments } from './AssemblyComments'
+import { AssemblyTasks } from './AssemblyTasks'
 
 type Choice = 'FOR' | 'AGAINST' | 'ABSTAIN'
 
@@ -56,6 +58,8 @@ function formatDateTime(iso: string): string {
 type Props = {
   assembly: Assembly
   isAdmin: boolean
+  canApprove: boolean
+  currentUserId: string
   canVote: boolean
   membership: { isOwner: boolean; areaSqm: number }
   myVotes: Array<{ questionId: string; choice: Choice; castAt: string }>
@@ -64,7 +68,7 @@ type Props = {
   signatureCount: number
 }
 
-export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, results, hasSigned, signatureCount }: Props) {
+export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, canVote, membership, myVotes, results, hasSigned, signatureCount }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const [choices, setChoices] = useState<Record<string, Choice>>(() => {
@@ -200,11 +204,14 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
                 </button>
               </>
             )}
-            {assembly.status === 'VOTING' && (
+            {assembly.status === 'VOTING' && canApprove && (
               <button onClick={() => transition('CLOSED')} disabled={transitioning}
                 className="px-3 py-1.5 bg-ink text-white rounded-lg text-xs font-medium disabled:opacity-50">
                 Закрыть голосование
               </button>
+            )}
+            {assembly.status === 'VOTING' && !canApprove && (
+              <span className="text-xs text-ink/50 self-center">Закрытие — за председателем</span>
             )}
             {assembly.status === 'CLOSED' && (
               <a href={`/api/assemblies/${assembly.id}/protocol`} target="_blank" rel="noopener noreferrer"
@@ -376,6 +383,20 @@ export function AssemblyRoom({ assembly, isAdmin, canVote, membership, myVotes, 
       )}
 
       {error && !canVote && <p className="text-red-500 text-sm mt-3">{error}</p>}
+
+      {/* Action-item tracker («поручения») — from the protocol, after close */}
+      {assembly.status === 'CLOSED' && (
+        <div className="mt-6">
+          <AssemblyTasks assemblyId={assembly.id} />
+        </div>
+      )}
+
+      {/* Comment feed under the announcement */}
+      {assembly.status !== 'DRAFT' && (
+        <div className="mt-6">
+          <AssemblyComments assemblyId={assembly.id} currentUserId={currentUserId} />
+        </div>
+      )}
     </div>
   )
 }

@@ -25,7 +25,7 @@ export default async function AdminPetitionEditPage({
   if (!petition) notFound()
 
   const [orgs, groups, activities] = await Promise.all([
-    prisma.organization.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.organization.findMany({ where: { deletedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     prisma.orgGroup.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     prisma.activity.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ])

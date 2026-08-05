@@ -31,6 +31,7 @@ export default async function RegistrationsQueuePage() {
   ])
 
   const orgs = await prisma.organization.findMany({
+    where: { deletedAt: null },
     orderBy: { name: 'asc' },
     select: { id: true, name: true },
   })
