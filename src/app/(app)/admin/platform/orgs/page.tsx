@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Building2, Pencil, Trash2, Check, X, RotateCcw } from 'lucide-react'
+import { Plus, Building2, Pencil, Trash2, RotateCcw } from 'lucide-react'
 import { useConfirm } from '@/components/ui/dialog'
 
 interface Org {
@@ -27,9 +27,6 @@ export default function PlatformOrgsPage() {
   const [error, setError] = useState('')
   const [blockers, setBlockers] = useState<Blocker[]>([])
   const [deleted, setDeleted] = useState<DeletedOrg[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editType, setEditType] = useState<string>('')
 
   const labelOf = useCallback((code: string) => types.find(t => t.code === code)?.label ?? code, [types])
 
@@ -81,24 +78,6 @@ export default function PlatformOrgsPage() {
         await load()
       }
     } finally { setCreating(false) }
-  }
-
-  function startEdit(o: Org, e: React.MouseEvent) {
-    e.preventDefault(); e.stopPropagation()
-    setEditingId(o.id); setEditName(o.name); setEditType(o.type); setError(''); setBlockers([])
-  }
-
-  async function saveEdit(orgId: string) {
-    setError('')
-    const res = await fetch(`/api/admin/platform/orgs/${orgId}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName.trim(), type: editType }),
-    })
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      setError(d.error || 'Не удалось сохранить'); return
-    }
-    setEditingId(null); await load()
   }
 
   async function remove(orgId: string, orgName: string, e: React.MouseEvent) {
@@ -183,57 +162,33 @@ export default function PlatformOrgsPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {orgs.map(org => {
-            if (editingId === org.id) {
-              return (
-                <div key={org.id} className="bg-white border-2 border-forest rounded-2xl p-4 space-y-2">
-                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
-                    className="w-full px-3 py-2 border border-border rounded-xl text-sm" />
-                  <select value={editType} onChange={e => setEditType(e.target.value)}
-                    className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-white">
-                    {types.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
-                  </select>
-                  <div className="flex gap-2">
-                    <button onClick={() => saveEdit(org.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-forest text-white rounded-lg text-xs font-medium">
-                      <Check size={14} /> Сохранить
-                    </button>
-                    <button onClick={() => { setEditingId(null); setError('') }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-border rounded-lg text-xs">
-                      <X size={14} /> Отмена
-                    </button>
-                  </div>
+          {orgs.map(org => (
+            <div key={org.id} className="bg-white border border-border rounded-2xl flex items-stretch overflow-hidden hover:border-forest transition-colors">
+              <a href={`/admin/platform/orgs/${org.id}`}
+                className="flex-1 p-4 flex items-center gap-4 cursor-pointer hover:bg-forest/5">
+                <div className="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center shrink-0">
+                  <Building2 size={18} className="text-amber" />
                 </div>
-              )
-            }
-            return (
-              <div key={org.id} className="bg-white border border-border rounded-2xl flex items-stretch overflow-hidden hover:border-forest transition-colors">
-                <a href={`/admin/platform/orgs/${org.id}`}
-                  className="flex-1 p-4 flex items-center gap-4 cursor-pointer hover:bg-forest/5">
-                  <div className="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center shrink-0">
-                    <Building2 size={18} className="text-amber" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-ink truncate">{org.name}</p>
-                    <p className="text-xs text-ink/50 mt-0.5">
-                      {labelOf(org.type)} · {org._count.memberships} участн. · {org._count.buildings} объект. · {org._count.petitions} заявл.
-                    </p>
-                  </div>
-                  <code className="text-xs text-ink/40 font-mono shrink-0">{org.slug}</code>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-ink truncate">{org.name}</p>
+                  <p className="text-xs text-ink/50 mt-0.5">
+                    {labelOf(org.type)} · {org._count.memberships} участн. · {org._count.buildings} объект. · {org._count.petitions} заявл.
+                  </p>
+                </div>
+                <code className="text-xs text-ink/40 font-mono shrink-0">{org.slug}</code>
+              </a>
+              <div className="flex flex-col border-l border-border">
+                <a href={`/admin/org/profile?org=${org.id}`} title="Редактировать: название, тип, описание, карта, фото"
+                  className="flex-1 px-3 flex items-center text-ink/40 hover:text-forest hover:bg-forest/5 transition-colors">
+                  <Pencil size={15} />
                 </a>
-                <div className="flex flex-col border-l border-border">
-                  <button onClick={(e) => startEdit(org, e)} title="Переименовать"
-                    className="flex-1 px-3 text-ink/40 hover:text-forest hover:bg-forest/5 transition-colors">
-                    <Pencil size={15} />
-                  </button>
-                  <button onClick={(e) => remove(org.id, org.name, e)} title="Удалить"
-                    className="flex-1 px-3 text-ink/40 hover:text-red-500 hover:bg-red-50 transition-colors border-t border-border">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+                <button onClick={(e) => remove(org.id, org.name, e)} title="Удалить"
+                  className="flex-1 px-3 text-ink/40 hover:text-red-500 hover:bg-red-50 transition-colors border-t border-border">
+                  <Trash2 size={15} />
+                </button>
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       )}
 
