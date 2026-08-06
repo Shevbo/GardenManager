@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { Role } from '@prisma/client'
 import prisma from '@/lib/prisma'
 
 // Platform owner accounts — ALWAYS platform-admin, independent of any org
@@ -59,6 +60,32 @@ export async function isOrgAdmin(userId: string, orgId: string): Promise<boolean
   if (m) return true
   const gov = await prisma.orgRoleAssignment.findFirst({
     where: { userId, orgId, role: 'org_admin' }, select: { id: true },
+  })
+  return !!gov
+}
+
+/** Membership roles that have always implied org management. */
+const ORG_MANAGER_MEMBERSHIP_ROLES: Role[] = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+
+/**
+ * May convene an ОСС in this org (create/see the «Создать собрание» action).
+ *
+ * `Membership.role` alone is NOT enough: a person can be a plain `owner` there
+ * and still be the platform admin or hold a governance position (chairman /
+ * deputy / secretary / org_admin) — those positions live in `OrgRoleAssignment`,
+ * separately from ownership. Gating on the membership role only made the button
+ * invisible to the very people who convene meetings.
+ */
+export async function canManageAssemblies(userId: string, orgId: string): Promise<boolean> {
+  if (await isOrgAdmin(userId, orgId)) return true
+  const m = await prisma.membership.findFirst({
+    where: { userId, orgId, role: { in: ORG_MANAGER_MEMBERSHIP_ROLES } },
+    select: { id: true },
+  })
+  if (m) return true
+  const gov = await prisma.orgRoleAssignment.findFirst({
+    where: { userId, orgId, role: { in: ['chairman', 'vice_chairman', 'secretary'] } },
+    select: { id: true },
   })
   return !!gov
 }

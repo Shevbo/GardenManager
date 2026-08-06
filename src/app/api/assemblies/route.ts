@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { requirePhoneVerified } from '@/lib/permissions'
+import { requirePhoneVerified, canManageAssemblies } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
-
-const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -64,10 +62,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'at least one question required' }, { status: 400 })
   }
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, orgId },
-  })
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
+  // Права на созыв — см. canManageAssemblies (админ платформы / орг-админ /
+  // должности правления), не только Membership.role.
+  if (!(await canManageAssemblies(session.user.id, orgId))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

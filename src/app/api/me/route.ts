@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { getActiveOrgId } from '@/lib/active-org'
 
 export async function GET() {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id },
-    orderBy: { org: { createdAt: 'asc' } },
-  })
-
-  return NextResponse.json({ orgId: membership?.orgId ?? null })
+  // Активная группа (та же, что в левом переключателе), а не «первая по дате»:
+  // формы создания заявления/собрания вешают документ именно на неё.
+  return NextResponse.json({ orgId: await getActiveOrgId(session.user.id) })
 }

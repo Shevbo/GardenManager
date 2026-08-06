@@ -4,10 +4,10 @@ import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { Plus, Vote, Calendar } from 'lucide-react'
 import { getActiveOrgId } from '@/lib/active-org'
+import { canManageAssemblies } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
-const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Черновик', ANNOUNCED: 'Объявлено — согласование', VOTING: 'Идёт голосование', CLOSED: 'Закрыто',
 }
@@ -24,11 +24,10 @@ export default async function AssembliesPage() {
 
   // Scope to the ACTIVE group only — never show assemblies of other groups.
   const activeOrgId = await getActiveOrgId(session.user.id)
-  const memberships = await prisma.membership.findMany({
-    where: { userId: session.user.id, orgId: activeOrgId ?? undefined },
-    select: { role: true },
-  })
-  const isAdmin = memberships.some(m => ADMIN_ROLES.includes(m.role))
+  // Кто может созвать ОСС — по правам в организации (админ платформы, орг-админ,
+  // должности правления), а НЕ по Membership.role: собственник может быть
+  // председателем/админом, и раньше кнопка от него пряталась.
+  const isAdmin = activeOrgId ? await canManageAssemblies(session.user.id, activeOrgId) : false
 
   const assemblies = !activeOrgId ? [] : await prisma.assembly.findMany({
     where: { orgId: activeOrgId },
