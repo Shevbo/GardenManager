@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 import { generatePetitionPdf } from '@/lib/pdf'
 import { formatDocNumber } from '@/lib/doc-number'
 import type { ViewerContext } from '@/lib/pdf/types'
-import { isPlatformAdmin } from '@/lib/permissions'
+import { maskSenderLine } from '@/lib/pii'
 
 export async function GET(
   _req: NextRequest,
@@ -29,14 +29,17 @@ export async function GET(
   const text = petition.finalText ?? petition.draftText
   if (!text) return NextResponse.json({ error: 'No text yet' }, { status: 400 })
 
-  const isAdmin = (membership?.role != null && ['org_admin', 'council_member', 'coalition_admin'].includes(membership.role)) || await isPlatformAdmin(session.user.id)
-  const viewer: ViewerContext = { viewerUserId: session.user.id, isAdmin }
+  // Full personal data (author's contact header + signatories' addresses) is
+  // shown ONLY to the petition author; everyone else sees names but not PII.
+  const canSeePii = session.user.id === petition.createdBy
+  const viewer: ViewerContext = { viewerUserId: session.user.id, canSeePii }
+  const fromLine = maskSenderLine(petition.senderLine, canSeePii) || petition.org.name
 
   const pdf = await generatePetitionPdf(
     petition.title,
     text,
     [],
-    { recipient: petition.recipient, orgName: petition.senderLine || petition.org.name, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq), date: new Date(petition.createdAt).toLocaleDateString("ru-RU") }
+    { recipient: petition.recipient, orgName: fromLine, viewer, docNumber: formatDocNumber(petition.docYear, petition.docSeq), date: new Date(petition.createdAt).toLocaleDateString("ru-RU") }
   )
 
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')

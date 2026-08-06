@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { buildRegistryRows, renderPackagePdf } from '@/lib/pdf/index'
 import { formatDocNumber } from '@/lib/doc-number'
 import { isPlatformAdmin } from '@/lib/permissions'
+import { maskSenderLine } from '@/lib/pii'
 import type { LayoutKey } from '@/lib/pdf/types'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -58,8 +59,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     membership: membershipByUserId.get(sig.userId) ?? null,
   }))
 
-  // Admin always sees full PII in the package
-  const registryRows = buildRegistryRows(signaturesWithMembership, { viewerUserId: session.user.id, isAdmin: true })
+  // Full PII (signatory addresses + the author's contact header) is shown ONLY
+  // to the petition author — the one who downloads the package for the addressee.
+  const canSeePii = session.user.id === petition.createdBy
+  const registryRows = buildRegistryRows(signaturesWithMembership, { viewerUserId: session.user.id, canSeePii })
 
   // Load signed appendices
   const appendices = await prisma.generatedDocument.findMany({
@@ -75,9 +78,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       title: petition.title,
       bodyText,
       recipient: petition.recipient,
-      fromLine: petition.senderLine || petition.org.name,
+      fromLine: maskSenderLine(petition.senderLine, canSeePii) || petition.org.name,
       rows: registryRows,
-      masked: false,
+      masked: !canSeePii,
       hideFooter: true,
       footerSubject: 'обращение',
       docNumber: formatDocNumber(petition.docYear, petition.docSeq),

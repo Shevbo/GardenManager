@@ -21,8 +21,10 @@ export interface RegistryRow {
   signedAt: string
 }
 
-/** Viewer context controls PII masking. */
+/** Viewer context controls PII masking. `canSeePii` is granted ONLY to the
+ *  petition author — other participants (incl. admins) see names but not
+ *  addresses/contacts. A data subject still sees their own row (see maskPii). */
 export interface ViewerContext {
   viewerUserId: string | null
-  isAdmin: boolean
+  canSeePii: boolean
 }

@@ -16,7 +16,7 @@ describe('pdf registry rows', () => {
           properties: [{ address: 'ул. Садовая, д. 1', apartmentNumber: '42', signedAt: new Date('2026-05-20T00:00:00Z') }],
         },
       },
-    ], { viewerUserId: null, isAdmin: true })
+    ], { viewerUserId: null, canSeePii: true })
     expect(rows[0]).toMatchObject({
       num: 1,
       name: 'Иван Петров',

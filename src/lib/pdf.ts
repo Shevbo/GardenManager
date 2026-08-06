@@ -32,7 +32,7 @@ export async function generatePetitionPdf(
   signatures: SignatureInput[],
   opts?: { recipient?: string | null; orgName?: string | null; viewer?: ViewerContext; docNumber?: string | null; date?: string | null },
 ): Promise<Buffer> {
-  const viewer = opts?.viewer ?? { viewerUserId: null, isAdmin: true }
+  const viewer = opts?.viewer ?? { viewerUserId: null, canSeePii: true }
   const rows = buildRegistryRows(signatures, viewer)
 
   const renderAt = (fontSize?: number, paraGap?: number) => renderDocumentPdf({
@@ -43,7 +43,7 @@ export async function generatePetitionPdf(
     recipient: opts?.recipient ?? null,
     fromLine: opts?.orgName ?? null,
     rows,
-    masked: !viewer.isAdmin,
+    masked: !viewer.canSeePii,
     hideFooter: true, // footer (meta + page numbers) stamped via pdf-lib below
     docNumber: opts?.docNumber ?? null,
     fontSize,

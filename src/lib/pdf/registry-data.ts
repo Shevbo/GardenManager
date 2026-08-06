@@ -38,8 +38,9 @@ export function buildRegistryRows(signatures: SignatureInput[], viewer: ViewerCo
   let num = 0
   for (const s of signatures) {
     const owner = s.userId
-    const rawName = s.user.name ?? s.user.email ?? s.user.phone ?? 'Аноним'
-    const name = maskPii(rawName, { ownerUserId: owner, viewer })
+    // ФИО is always shown (per the privacy rule — leave only the full name);
+    // only the address/contact fields below are masked for non-authors.
+    const name = s.user.name ?? s.user.email ?? s.user.phone ?? 'Аноним'
     const signedAt = s.signedAt.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
     const props = s.user.properties ?? []
     if (props.length === 0) {
