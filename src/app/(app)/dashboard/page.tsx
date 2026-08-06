@@ -95,7 +95,9 @@ export default async function DashboardPage() {
 
       {orgs.length > 1 && <GroupTabs orgs={orgs} activeOrgId={orgId} />}
 
-      <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0">
+      {/* overflow-y-auto: контент (шапка орги + карта + панели) выше вьюпорта —
+          без вертикального скролла низ страницы недостижим. */}
+      <div className="flex flex-col gap-5 px-5 py-4 flex-1 min-h-0 overflow-y-auto">
 
         {/* Org header — cover photo, description, map */}
         <div className="shrink-0">
@@ -160,8 +162,9 @@ export default async function DashboardPage() {
           <RolesPanel roles={govRoles} platformAdmins={platformAdmins} isAdmin={canManageRoles} currentUserId={userId} />
         </div>
 
-        {/* 2-column layout */}
-        <div className="flex gap-5 flex-1 min-h-0">
+        {/* 2-column layout: минимальная высота вместо min-h-0 — иначе колонки
+            сплющиваются под вьюпорт и вертикальный скролл страницы не появляется */}
+        <div className="flex gap-5 flex-1 min-h-[420px] shrink-0">
 
           {/* Col 1: Active signing petition */}
           <div className="flex flex-col" style={{ flex: '0 0 38%' }}>

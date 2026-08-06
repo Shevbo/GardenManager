@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { requirePhoneVerified, canManageAssemblies } from '@/lib/permissions'
+import { requirePhoneVerified, canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
 import prisma from '@/lib/prisma'
 
 export async function GET(req: NextRequest) {
@@ -62,10 +62,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'at least one question required' }, { status: 400 })
   }
 
-  // Права на созыв — см. canManageAssemblies (админ платформы / орг-админ /
-  // должности правления), не только Membership.role.
-  if (!(await canManageAssemblies(session.user.id, orgId))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Права на созыв — админ / секретарь / председатель+зам (см. permissions).
+  if (!(await canManageOrgWorkflow(session.user.id, orgId))) {
+    return NextResponse.json({ error: WORKFLOW_FORBIDDEN_MESSAGE }, { status: 403 })
   }
 
   const assembly = await prisma.assembly.create({

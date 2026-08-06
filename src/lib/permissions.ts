@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 import type { Role } from '@prisma/client'
 import prisma from '@/lib/prisma'
 
-// Platform owner accounts — ALWAYS platform-admin, independent of any org
+// Platform owner account — ALWAYS platform-admin, independent of any org
 // membership (Boris must reach «Управление» regardless of group inclusion).
 // Additional admins can still be granted via a platform_admin membership role.
-const PLATFORM_ADMIN_EMAILS = new Set(['bshevelev75@gmail.com', 'bshevelev@mail.ru'])
+// ТОЛЬКО mail.ru (решение Бориса 2026-08-06): gmail-аккаунт используется как
+// обычный житель для боевого тестирования и админом быть не должен.
+const PLATFORM_ADMIN_EMAILS = new Set(['bshevelev@mail.ru'])
 
 /** Normalized full-name key (case/ё-insensitive, word-order-insensitive) so the
  *  same person holding several accounts collapses to one entry. */
@@ -64,11 +66,17 @@ export async function isOrgAdmin(userId: string, orgId: string): Promise<boolean
   return !!gov
 }
 
-/** Membership roles that have always implied org management. */
-const ORG_MANAGER_MEMBERSHIP_ROLES: Role[] = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+/** Membership roles that imply org management (решение Бориса: совет дома — НЕ входит). */
+const ORG_MANAGER_MEMBERSHIP_ROLES: Role[] = ['org_admin', 'coalition_admin', 'platform_admin']
+
+/** Единый текст отказа для рабочих действий (создание собраний, статусы заявлений). */
+export const WORKFLOW_FORBIDDEN_MESSAGE =
+  'Доступ к этой функции у администратора, секретаря и председателя'
 
 /**
- * May convene an ОСС in this org (create/see the «Создать собрание» action).
+ * Рабочие действия организации: созыв ОСС, перевод статусов заявлений.
+ * Разрешено: администраторам (платформенный / орг-админ как membership ИЛИ
+ * должность), секретарю и председателю/заму.
  *
  * `Membership.role` alone is NOT enough: a person can be a plain `owner` there
  * and still be the platform admin or hold a governance position (chairman /
@@ -76,7 +84,7 @@ const ORG_MANAGER_MEMBERSHIP_ROLES: Role[] = ['org_admin', 'council_member', 'co
  * separately from ownership. Gating on the membership role only made the button
  * invisible to the very people who convene meetings.
  */
-export async function canManageAssemblies(userId: string, orgId: string): Promise<boolean> {
+export async function canManageOrgWorkflow(userId: string, orgId: string): Promise<boolean> {
   if (await isOrgAdmin(userId, orgId)) return true
   const m = await prisma.membership.findFirst({
     where: { userId, orgId, role: { in: ORG_MANAGER_MEMBERSHIP_ROLES } },
@@ -89,6 +97,9 @@ export async function canManageAssemblies(userId: string, orgId: string): Promis
   })
   return !!gov
 }
+
+/** @deprecated старое имя — используйте canManageOrgWorkflow. */
+export const canManageAssemblies = canManageOrgWorkflow
 
 /**
  * Returns null if the user is allowed to perform write actions

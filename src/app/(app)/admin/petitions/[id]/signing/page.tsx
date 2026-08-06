@@ -16,6 +16,7 @@ import { AppendicesPanel } from '../AppendicesPanel'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
 import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
+import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -78,9 +79,8 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
   const totalMembers = petition.org.memberships.filter(m => m.isOwner).length
   const signedCount = petition.signatures.length
 
-  const currentMembership = petition.org.memberships.find(m => m.userId === session.user.id)
-  const isAdmin = currentMembership != null &&
-    (['org_admin', 'council_member', 'coalition_admin'] as string[]).includes(currentMembership.role)
+  const isAdmin = await canManageOrgWorkflow(session.user.id, petition.orgId)
+  const isAuthor = session.user.id === petition.createdBy
 
   const num = await assignDocNumber(prisma, id)
   const docNumber = formatDocNumber(num?.year ?? null, num?.seq ?? null)
@@ -90,10 +90,9 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
     const session = await auth()
     if (!session?.user) redirect('/login')
 
-    const membership = await prisma.membership.findFirst({
-      where: { userId: session.user.id, orgId: petition!.orgId },
-    })
-    if (!membership) redirect('/login')
+    if (!(await canManageOrgWorkflow(session.user.id, petition!.orgId))) {
+      redirect(`/admin/petitions/${id}/signing`)
+    }
 
     if (!canTransition(petition!.status as PetitionStatus, 'CLOSED')) return
 
@@ -138,11 +137,13 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
               {signedCount} из {totalMembers} участников подписали
             </p>
           </div>
-          {petition.status === 'SIGNING' && (
+          {petition.status === 'SIGNING' && (isAdmin ? (
             <form action={closePetition}>
               <Button type="submit" variant="primary" size="sm">Закрыть сбор подписей →</Button>
             </form>
-          )}
+          ) : (
+            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: '#92400E', margin: 0, maxWidth: '240px', textAlign: 'right' }}>{WORKFLOW_FORBIDDEN_MESSAGE}</p>
+          ))}
         </div>
 
         {/* Document card */}
@@ -164,7 +165,7 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
             <div style={{ padding: '14px 18px' }}>
               <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Инициатор</p>
               <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: '0 0 2px' }}>{petition.createdByUser.name ?? '—'}</p>
-              {petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
+              {isAuthor && petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
             </div>
           </div>
           <div style={{ padding: '22px 22px 18px', fontFamily: 'Golos Text, sans-serif', fontSize: '15px', lineHeight: '1.8', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{petition.finalText ?? petition.draftText}</div>
@@ -192,7 +193,7 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
           <div>
             {petition.signatures.map(s => (
               <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'Golos Text, sans-serif', fontSize: '13px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ color: 'var(--ink)' }}>{s.user.name ?? s.user.email ?? s.user.phone}</span>
+                <span style={{ color: 'var(--ink)' }}>{s.user.name ?? s.user.email ?? (isAuthor ? s.user.phone : 'Участник')}</span>
                 <span style={{ color: 'var(--ink-soft)', fontSize: '12px' }}>
                   {s.verifiedVia.toUpperCase()} · {new Date(s.signedAt).toLocaleString('ru-RU')}
                 </span>

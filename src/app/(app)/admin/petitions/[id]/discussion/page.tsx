@@ -14,8 +14,7 @@ import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
 import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
-
-const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -67,6 +66,8 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
 
   const num = await assignDocNumber(prisma, id)
   const docNumber = formatDocNumber(num?.year ?? null, num?.seq ?? null)
+  const canManage = await canManageOrgWorkflow(session.user.id, petition.orgId)
+  const isAuthor = session.user.id === petition.createdBy
 
   async function startRevision() {
     'use server'
@@ -77,10 +78,9 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
     const current = await prisma.petition.findUnique({ where: { id } })
     if (!current) redirect('/admin/petitions')
 
-    const membership = await prisma.membership.findFirst({
-      where: { userId: sess.user.id, orgId: current.orgId },
-    })
-    if (!membership || !ADMIN_ROLES.includes(membership.role)) redirect('/login')
+    if (!(await canManageOrgWorkflow(sess.user.id, current.orgId))) {
+      redirect(`/admin/petitions/${id}/discussion`)
+    }
 
     if (!canTransition(current.status as PetitionStatus, 'AI_REVISION')) {
       redirect(`/admin/petitions/${id}/discussion`)
@@ -119,9 +119,13 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
             <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '10px', fontWeight: 700, color: '#92400E', letterSpacing: '0.06em', margin: '0 0 4px' }}>ЭТАП: ОБСУЖДЕНИЕ</p>
             <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#92400E', margin: 0 }}>Соберите обратную связь участников перед передачей в AI</p>
           </div>
-          <form action={startRevision}>
-            <Button type="submit" variant="primary" size="sm">Запустить AI-ревизию →</Button>
-          </form>
+          {canManage ? (
+            <form action={startRevision}>
+              <Button type="submit" variant="primary" size="sm">Запустить AI-ревизию →</Button>
+            </form>
+          ) : (
+            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: '#92400E', margin: 0, maxWidth: '240px', textAlign: 'right' }}>{WORKFLOW_FORBIDDEN_MESSAGE}</p>
+          )}
         </div>
 
         {/* Document card */}
@@ -143,7 +147,7 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
             <div style={{ padding: '14px 18px' }}>
               <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Инициатор</p>
               <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: '0 0 2px' }}>{petition.createdByUser.name ?? '—'}</p>
-              {petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
+              {isAuthor && petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
             </div>
           </div>
           <div style={{ padding: '22px 22px 18px', fontFamily: 'Golos Text, sans-serif', fontSize: '15px', lineHeight: '1.8', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{petition.draftText}</div>

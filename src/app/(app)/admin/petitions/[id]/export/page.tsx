@@ -62,6 +62,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
     },
   })
   if (!petition) notFound()
+  const isAuthor = session.user.id === petition.createdBy
 
   const membership = await prisma.membership.findFirst({
     where: { userId: session.user.id, orgId: petition.orgId },
@@ -121,7 +122,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
             <div style={{ padding: '14px 18px' }}>
               <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', margin: '0 0 5px' }}>Инициатор</p>
               <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink)', margin: '0 0 2px' }}>{petition.createdByUser.name ?? '—'}</p>
-              {petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
+              {isAuthor && petition.createdByUser.phone && <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>{petition.createdByUser.phone}</p>}
             </div>
           </div>
           <div style={{ padding: '22px 22px 18px', fontFamily: 'Golos Text, sans-serif', fontSize: '15px', lineHeight: '1.8', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{petition.finalText ?? petition.draftText}</div>

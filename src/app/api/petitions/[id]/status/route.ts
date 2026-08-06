@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { canTransition, canGoBack, PetitionStatus } from '@/lib/petition-status'
-
-const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
+import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
 
 export async function PATCH(
   req: NextRequest,
@@ -25,11 +24,9 @@ export async function PATCH(
   const petition = await prisma.petition.findUnique({ where: { id } })
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, orgId: petition.orgId },
-  })
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Переводить статусы могут админ / секретарь / председатель+зам (см. permissions).
+  if (!(await canManageOrgWorkflow(session.user.id, petition.orgId))) {
+    return NextResponse.json({ error: WORKFLOW_FORBIDDEN_MESSAGE }, { status: 403 })
   }
 
   const current = petition.status as PetitionStatus
