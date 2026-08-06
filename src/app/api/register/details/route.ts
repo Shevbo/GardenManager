@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { normalizeAddress } from '@/lib/address-match'
+import { findBuildingForAddress } from '@/lib/building-lookup'
 import { notifyAdminNewRegistration } from '@/lib/notifications'
 
 export async function POST(req: NextRequest) {
@@ -26,10 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = session.user.id
-  const normalized = normalizeAddress(rawAddress)
-  const building = normalized
-    ? await prisma.building.findUnique({ where: { addressNormalized: normalized } })
-    : null
+  const { normalized, building } = await findBuildingForAddress(rawAddress)
 
   if (building && building.orgId) {
     let apartmentId: string | null = null

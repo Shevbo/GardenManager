@@ -34,9 +34,11 @@ describe('POST /api/register/submit', () => {
     vi.mocked(prisma.verificationToken.findFirst).mockResolvedValue({
       identifier: 'x@y.z', token: '111111', expires: new Date(Date.now() + 60_000),
     } as any)
-    vi.mocked(prisma.building.findUnique).mockResolvedValue({
-      id: 'b1', orgId: 'o1', address: 'Москва, Садовая 12', addressNormalized: 'москва ул садовая д 12',
-    } as any)
+    // поиск дома идёт через findBuildingForAddress → building.findMany
+    vi.mocked(prisma.building.findMany).mockResolvedValue([{
+      id: 'b1', orgId: 'o1', address: 'Москва, Садовая 12',
+      addressNormalized: 'москва ул садовая д 12', org: { id: 'o1', name: 'ЖК', deletedAt: null },
+    }] as any)
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.$transaction).mockResolvedValue([
       { id: 'u1', email: 'x@y.z', status: 'ACTIVE' },
@@ -62,7 +64,7 @@ describe('POST /api/register/submit', () => {
     vi.mocked(prisma.verificationToken.findFirst).mockResolvedValue({
       identifier: 'x@y.z', token: '111111', expires: new Date(Date.now() + 60_000),
     } as any)
-    vi.mocked(prisma.building.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.building.findMany).mockResolvedValue([])
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.$transaction).mockResolvedValue([
       { id: 'u2', email: 'x@y.z', status: 'PENDING' },

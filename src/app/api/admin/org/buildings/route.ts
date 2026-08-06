@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { normalizeAddress } from '@/lib/address-match'
 
 async function getAdminOrgId(userId: string) {
   const membership = await prisma.membership.findFirst({
@@ -36,8 +37,9 @@ export async function POST(req: NextRequest) {
   const { address } = await req.json()
   if (!address?.trim()) return NextResponse.json({ error: 'Address required' }, { status: 400 })
 
+  // Без addressNormalized дом невидим для поиска на регистрации — ключ обязателен.
   const building = await prisma.building.create({
-    data: { orgId, address: address.trim() },
+    data: { orgId, address: address.trim(), addressNormalized: normalizeAddress(address) || null },
   })
 
   return NextResponse.json({ building }, { status: 201 })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { normalizeAddress } from '@/lib/address-match'
+import { findBuildingForAddress } from '@/lib/building-lookup'
 import { notifyAdminNewRegistration } from '@/lib/notifications'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -54,10 +54,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const normalized = normalizeAddress(rawAddress)
-  const building = normalized
-    ? await prisma.building.findUnique({ where: { addressNormalized: normalized } })
-    : null
+  // Тот же поиск, что и на шаге 1 — иначе «дом найден» на первом шаге
+  // превращается в заявку на модерацию при отправке.
+  const { normalized, building } = await findBuildingForAddress(rawAddress)
 
   // Treat building-without-org as pending: we have no Membership target.
   if (building && building.orgId) {

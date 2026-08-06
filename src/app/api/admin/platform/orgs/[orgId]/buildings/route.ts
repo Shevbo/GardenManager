@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { isPlatformAdmin } from '@/lib/permissions'
+import { normalizeAddress } from '@/lib/address-match'
 
-function normalize(addr: string): string {
-  return addr.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200)
-}
+// Ключ поиска обязан считаться ТЕМ ЖЕ нормализатором, что и на регистрации:
+// раньше здесь был свой (только lowercase+пробелы), и дом не находился никогда.
+const normalize = (addr: string): string => normalizeAddress(addr).slice(0, 200)
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
   const session = await auth()

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { normalizeAddress } from '@/lib/address-match'
 
 export async function GET() {
   const session = await auth()
@@ -34,9 +35,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'address required' }, { status: 400 })
   }
 
-  // Building actualization: deduplicate by addressNormalized or just create
+  // Building actualization: deduplicate by addressNormalized or just create.
+  // Ключ считаем на сервере: присланный клиентом мог быть нормализован иначе
+  // и создавал дубль дома, невидимый для поиска на регистрации.
   let building
-  const normKey = addressNormalized?.trim() || null
+  const normKey = normalizeAddress(address) || addressNormalized?.trim() || null
 
   if (normKey) {
     building = await prisma.building.upsert({
