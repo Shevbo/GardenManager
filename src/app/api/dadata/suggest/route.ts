@@ -1,11 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { createRateLimiter, clientIp } from '@/lib/rate-limit'
 
 const DADATA_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address'
 
+/**
+ * Подсказки адреса нужны на ПУБЛИЧНОМ шаге регистрации (мастер /register,
+ * пользователь ещё без сессии) — поэтому сессия здесь не обязательна.
+ * Чтобы открытый прокси не сжёг суточную квоту DaData, анонимные запросы
+ * ограничены: по IP и общим потолком на процесс. Авторизованных не лимитируем.
+ */
+const anonPerIp = createRateLimiter(60, 60_000)
+const anonGlobal = createRateLimiter(600, 60_000)
+
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) {
+    const ip = clientIp(req.headers)
+    const perIp = anonPerIp(ip)
+    const global = anonGlobal('all')
+    if (!perIp.allowed || !global.allowed) {
+      const retryAfterSec = Math.max(perIp.retryAfterSec, global.retryAfterSec)
+      return NextResponse.json(
+        { suggestions: [], rateLimited: true },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
+      )
+    }
+  }
 
   let body: unknown
   try { body = await req.json() } catch {

@@ -23,6 +23,7 @@ export function AddressAutocomplete({
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [notConfigured, setNotConfigured] = useState(false)
+  const [failed, setFailed] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const timer = useRef<NodeJS.Timeout | null>(null)
 
@@ -55,8 +56,18 @@ export function AddressAutocomplete({
           const data = await r.json() as { suggestions: Suggestion[]; notConfigured?: boolean }
           setSuggestions(data.suggestions)
           setNotConfigured(!!data.notConfigured)
-          setOpen(true)
+          setFailed(false)
+        } else {
+          // Молчаливый провал (раньше поле просто «не находило» ничего) — говорим прямо.
+          setSuggestions([])
+          setNotConfigured(false)
+          setFailed(true)
         }
+        setOpen(true)
+      } catch {
+        setSuggestions([])
+        setFailed(true)
+        setOpen(true)
       } finally { setLoading(false) }
     }, 250)
   }
@@ -80,11 +91,16 @@ export function AddressAutocomplete({
         autoComplete="off"
         className={className || 'w-full px-3 py-2 border border-border rounded-xl text-sm'}
       />
-      {open && (suggestions.length > 0 || notConfigured) && (
+      {open && (suggestions.length > 0 || notConfigured || failed) && (
         <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-border rounded-xl shadow-lg max-h-60 overflow-y-auto">
           {notConfigured && (
             <div className="px-3 py-2 text-xs text-ink/50 border-b border-border bg-amber/5">
               Поиск по КЛАДР недоступен (нет DaData API ключа). Введите адрес вручную.
+            </div>
+          )}
+          {failed && (
+            <div className="px-3 py-2 text-xs text-ink/50 bg-amber/5">
+              Подсказки сейчас недоступны. Введите адрес вручную — регистрация продолжится.
             </div>
           )}
           {suggestions.map((s, i) => {
