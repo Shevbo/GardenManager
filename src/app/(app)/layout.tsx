@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
+import { isPlatformAdmin } from '@/lib/permissions'
 import { Sidebar } from '@/components/layout/Sidebar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -21,9 +22,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/register/details')
   }
 
+  const platformAdmin = await isPlatformAdmin(session.user.id)
+
   return (
     <div className="h-screen bg-[#F7F5F0] flex overflow-hidden">
-      <Sidebar />
+      <Sidebar isPlatformAdmin={platformAdmin} />
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden" style={{ marginLeft: '15rem' }}>
         {children}
       </main>

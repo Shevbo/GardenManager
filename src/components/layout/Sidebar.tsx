@@ -27,11 +27,13 @@ const NAV_ITEMS = [
 
 const BOTTOM_ITEMS = [
   { href: '/about',             icon: BookOpen, label: 'О проекте' },
-  { href: '/admin/platform',    icon: Settings, label: 'Управление' },
+  // «Управление» — только платформенному админу (фильтруется по пропсу ниже)
+  { href: '/admin/platform',    icon: Settings, label: 'Управление', platformAdminOnly: true },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isPlatformAdmin = false }: { isPlatformAdmin?: boolean }) {
   const pathname = usePathname();
+  const bottomItems = BOTTOM_ITEMS.filter(i => !i.platformAdminOnly || isPlatformAdmin);
 
   return (
     <aside className="fixed inset-y-0 left-0 w-60 bg-forest flex flex-col z-20">
@@ -83,7 +85,7 @@ export function Sidebar() {
 
       {/* Bottom nav */}
       <div className="px-3 py-3 border-t border-white/10 space-y-0.5">
-        {BOTTOM_ITEMS.map(({ href, icon: Icon, label }) => {
+        {bottomItems.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
             <Link
