@@ -7,8 +7,16 @@ type Membership = {
   membershipId: string
   orgId: string
   orgName: string
+  orgType: string
+  orgTypeLabel: string
   apartmentNumber: string | null
   buildingAddress: string | null
+}
+
+/** Short badge text from a type label (e.g. «Кооператив» → «КОО», «ГК» → «ГК»). */
+function typeBadge(label: string | undefined): string {
+  if (!label) return '—'
+  return label.length <= 3 ? label : label.slice(0, 3).toUpperCase()
 }
 
 export function OrgSelector() {
@@ -77,7 +85,7 @@ export function OrgSelector() {
       <button onClick={() => setOpen(v => !v)}
         className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/10 transition-colors text-left">
         <div className="w-7 h-7 bg-amber/20 rounded-lg flex items-center justify-center shrink-0">
-          <span className="text-amber text-xs font-bold">ЖК</span>
+          <span className="text-amber text-[10px] font-bold">{active ? typeBadge(active.orgTypeLabel) : 'Все'}</span>
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-xs font-medium truncate">{label}</p>
