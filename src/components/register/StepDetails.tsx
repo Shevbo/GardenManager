@@ -1,6 +1,6 @@
 'use client'
 
-type Org = { id: string; name: string } | null
+type Org = { id: string; name: string; typeLabel?: string | null } | null
 
 type Props = {
   matched: boolean
@@ -25,7 +25,10 @@ export function StepDetails({
       <div>
         <h2 className="font-display text-xl font-bold text-ink mb-1">Ваши данные</h2>
         {matched ? (
-          <p className="text-sm text-forest">✓ Дом найден{org ? ` — ЖК «${org.name}»` : ''}</p>
+          // Вид организации — из справочника (ЖК / ТГК / ГК…), не хардкод.
+          <p className="text-sm text-forest">
+            ✓ Дом найден{org ? ` — ${org.typeLabel ? `${org.typeLabel} ` : ''}«${org.name}»` : ''}
+          </p>
         ) : (
           <div className="text-sm text-ink/70 bg-amber/5 border border-amber/30 rounded-xl p-3 mt-2">
             ⚠ Дом не найден в базе. Заявка попадёт в очередь к администратору платформы.

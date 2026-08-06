@@ -95,7 +95,7 @@ export async function notifyUserApproved(input: UserApprovedInput): Promise<void
       html: `<p>Ваша регистрация по адресу <b>${escapeHtml(input.address)}</b> одобрена.</p>
         ${input.orgName ? `<p>Вы добавлены в ${escapeHtml(input.orgName)}.</p>` : ''}
         <p>Войдите в систему: <a href="${escapeHtml(appUrl)}">${escapeHtml(appUrl)}</a></p>`,
-      text: `Ваша заявка одобрена. Адрес: ${input.address}. ${input.orgName ? `ЖК: ${input.orgName}. ` : ''}${appUrl}`,
+      text: `Ваша заявка одобрена. Адрес: ${input.address}. ${input.orgName ? `Организация: ${input.orgName}. ` : ''}${appUrl}`,
     })
   } catch (e) {
     console.warn('[email] approved notification failed:', (e as Error).message)

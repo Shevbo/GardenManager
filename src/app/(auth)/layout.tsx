@@ -30,7 +30,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </h2>
           <p className="text-white/60 text-sm leading-relaxed max-w-xs">
             Голосования, заявления, финансы и чаты —
-            всё для собственников одного ЖК
+            всё для собственников одного дома
           </p>
         </div>
 

@@ -26,7 +26,16 @@ export async function POST(req: NextRequest) {
     data: { identifier: normalizedEmail, token: otp, expires },
   })
 
-  await sendEmailOtp(normalizedEmail, otp)
+  try {
+    await sendEmailOtp(normalizedEmail, otp)
+  } catch (e) {
+    // Сбой почты — не «Сетевая ошибка», а честный ответ; сигнал уже ушёл из sendEmail.
+    console.error(`[email-otp] send failed: ${(e as Error).message}`)
+    return NextResponse.json(
+      { error: 'Не удалось отправить письмо — почтовый сервис временно недоступен. Попробуйте ещё раз через пару минут.' },
+      { status: 502 },
+    )
+  }
 
   return NextResponse.json({ ok: true })
 }

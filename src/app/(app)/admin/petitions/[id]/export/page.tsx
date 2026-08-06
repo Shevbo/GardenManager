@@ -149,7 +149,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
           <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', fontWeight: 600, color: 'var(--ink)', margin: '0 0 8px' }}>Что в документе:</p>
           <ul style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: 'var(--ink-soft)', margin: 0, paddingLeft: '18px', lineHeight: 1.7 }}>
             <li>Финальный текст заявления</li>
-            <li>Реестр подписей: ФИО, квартира, ЖК, дата, канал верификации</li>
+            <li>Реестр подписей: ФИО, квартира, организация, дата, канал верификации</li>
             <li>Дисклеймер о юридической силе электронных подписей</li>
           </ul>
         </div>

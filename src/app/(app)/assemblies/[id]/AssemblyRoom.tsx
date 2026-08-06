@@ -231,7 +231,7 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
       )}
       {membership.isOwner && (!membership.areaSqm || membership.areaSqm <= 0) && (
         <div className="bg-amber/5 border border-amber/30 rounded-2xl p-4 mb-5 text-sm text-ink/70">
-          Площадь вашего объекта не указана. Обратитесь к администратору ЖК для верификации — без площади голос не учитывается.
+          Площадь вашего объекта не указана. Обратитесь к администратору организации для верификации — без площади голос не учитывается.
         </div>
       )}
 

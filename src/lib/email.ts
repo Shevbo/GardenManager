@@ -42,13 +42,21 @@ export async function sendEmail({ to, subject, html, text }: SendInput): Promise
   const fromName = process.env.EMAIL_FROM_NAME ?? 'Garden Manager'
   const transport = createTransport()
 
-  await transport.sendMail({
-    from: `"${fromName}" <${fromEmail}>`,
-    to,
-    subject,
-    html,
-    text: text ?? html.replace(/<[^>]+>/g, ''),
-  })
+  try {
+    await transport.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to,
+      subject,
+      html,
+      text: text ?? html.replace(/<[^>]+>/g, ''),
+    })
+  } catch (e) {
+    // Сбой SMTP — сигнал админам/в лог (ext-alert сам никогда не шлёт email),
+    // после чего пробрасываем: решает вызывающий (OTP отдаст 502, notify молчит).
+    const { reportExtFailure } = await import('./ext-alert')
+    await reportExtFailure('smtp', e)
+    throw e
+  }
 }
 
 export async function sendNotSignedNotification(

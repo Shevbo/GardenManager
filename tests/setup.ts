@@ -30,6 +30,8 @@ vi.mock('@/lib/prisma', () => ({
     membership: makeMock(),
     orgRoleAssignment: makeMock(),
     auditLog: makeMock(),
+    notification: makeMock(),
+    orgTypeRef: makeMock(),
     petition: makeMock(),
     petitionMaterial: makeMock(),
     petitionComment: makeMock(),

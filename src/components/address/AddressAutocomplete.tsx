@@ -53,10 +53,10 @@ export function AddressAutocomplete({
           body: JSON.stringify({ query: v }),
         })
         if (r.ok) {
-          const data = await r.json() as { suggestions: Suggestion[]; notConfigured?: boolean }
+          const data = await r.json() as { suggestions: Suggestion[]; notConfigured?: boolean; failed?: boolean }
           setSuggestions(data.suggestions)
           setNotConfigured(!!data.notConfigured)
-          setFailed(false)
+          setFailed(!!data.failed)
         } else {
           // Молчаливый провал (раньше поле просто «не находило» ничего) — говорим прямо.
           setSuggestions([])

@@ -104,7 +104,7 @@ export default function PlatformOrgsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink mb-1">Организации</h1>
-          <p className="text-ink/50 text-sm">ЖК / кооперативы — все организации платформы</p>
+          <p className="text-ink/50 text-sm">Все организации платформы</p>
         </div>
         {!showForm && (
           <button onClick={() => setShowForm(true)}

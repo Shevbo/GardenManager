@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Garden Manager",
-  description: "Управление ЖК: заявления, собрания, финансы",
+  description: "Управление организацией жителей: заявления, собрания, финансы",
 };
 
 export default function RootLayout({

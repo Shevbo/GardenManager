@@ -39,7 +39,7 @@ export default async function PlatformAdminIndex() {
       href: '/admin/platform/org-groups',
       icon: Users,
       title: 'Группы организаций',
-      description: 'Объединение ЖК в группы для межорг-заявлений.',
+      description: 'Объединение организаций в группы для межорг-заявлений.',
     },
     {
       href: '/admin/platform/members',

@@ -52,8 +52,14 @@ export async function POST(req: NextRequest) {
         Authorization: `Token ${token}`,
       },
       body: JSON.stringify({ query, count: 6 }),
+      signal: AbortSignal.timeout(8_000),
     })
-    if (!r.ok) return NextResponse.json({ suggestions: [] })
+    if (!r.ok) {
+      // Сбой провайдера ≠ «подсказок нет» — клиент должен предложить ручной ввод.
+      const { reportExtFailure } = await import('@/lib/ext-alert')
+      await reportExtFailure('dadata', new Error(`HTTP ${r.status}`))
+      return NextResponse.json({ suggestions: [], failed: true })
+    }
     type DaDataSuggestion = {
       value: string
       data: {
@@ -74,7 +80,9 @@ export async function POST(req: NextRequest) {
       },
     }))
     return NextResponse.json({ suggestions })
-  } catch {
-    return NextResponse.json({ suggestions: [] })
+  } catch (e) {
+    const { reportExtFailure } = await import('@/lib/ext-alert')
+    await reportExtFailure('dadata', e)
+    return NextResponse.json({ suggestions: [], failed: true })
   }
 }

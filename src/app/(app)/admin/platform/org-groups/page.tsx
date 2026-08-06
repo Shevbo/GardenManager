@@ -89,7 +89,7 @@ export default function PlatformOrgGroupsPage() {
   return (
     <div className="p-8 max-w-2xl">
       <h1 className="font-display text-2xl font-bold text-ink mb-1">Группы организаций</h1>
-      <p className="text-ink/50 text-sm mb-6">Объединяйте несколько ЖК для совместных петиций</p>
+      <p className="text-ink/50 text-sm mb-6">Объединяйте несколько организаций для совместных заявлений</p>
 
       <form onSubmit={createGroup} className="flex gap-2 mb-6">
         <input
@@ -151,7 +151,7 @@ export default function PlatformOrgGroupsPage() {
                     onChange={e => { if (e.target.value) addOrg(g.id, e.target.value) }}
                     className="w-full px-3 py-2 rounded-xl border border-border text-xs text-ink/60 bg-white focus:outline-none focus:border-forest"
                   >
-                    <option value="">+ Добавить ЖК в группу</option>
+                    <option value="">+ Добавить организацию в группу</option>
                     {availableOrgs.map(o => (
                       <option key={o.id} value={o.id}>{o.name}</option>
                     ))}

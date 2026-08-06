@@ -5,7 +5,7 @@ import { StepAddress } from './StepAddress'
 import { StepDetails } from './StepDetails'
 import { StepOtp } from './StepOtp'
 
-type Org = { id: string; name: string } | null
+type Org = { id: string; name: string; typeLabel?: string | null } | null
 
 export function RegistrationWizard() {
   const [step, setStep] = useState<'address' | 'details' | 'otp'>('address')

@@ -33,26 +33,35 @@ export async function sendSms(phone: string, message: string): Promise<void> {
   }
 
   const basic = Buffer.from(auth, 'utf-8').toString('base64')
-  const res = await fetch(`${url.replace(/\/$/, '')}/message`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${basic}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message,
-      phoneNumbers: [phone],
-    }),
-  })
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/message`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${basic}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        phoneNumbers: [phone],
+      }),
+      // Android-гейт за WG иногда недоступен; без таймаута запрос висит минутами.
+      signal: AbortSignal.timeout(15_000),
+    })
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`SMS gateway HTTP ${res.status}: ${text.slice(0, 200)}`)
-  }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`SMS gateway HTTP ${res.status}: ${text.slice(0, 200)}`)
+    }
 
-  const data = (await res.json()) as SmsGatewayResponse
-  const recipient = data.recipients?.[0]
-  if (recipient && recipient.state === 'Failed') {
-    throw new Error(`SMS send failed for ${phone}: ${recipient.error ?? 'unknown'}`)
+    const data = (await res.json()) as SmsGatewayResponse
+    const recipient = data.recipients?.[0]
+    if (recipient && recipient.state === 'Failed') {
+      throw new Error(`SMS send failed for ${phone}: ${recipient.error ?? 'unknown'}`)
+    }
+  } catch (e) {
+    // Сигнал о сбое гейта (в лог + колокольчик админам), телефон в сигнал не пишем (ПДн).
+    const { reportExtFailure } = await import('./ext-alert')
+    await reportExtFailure('sms', e instanceof Error ? new Error(e.message.replace(phone, '<phone>')) : e)
+    throw e
   }
 }

@@ -19,7 +19,11 @@ export async function webSearch(query: string): Promise<string> {
   try {
     const url = `${SEARCH_URL}?q=${encodeURIComponent(query)}&limit=6`
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
-    if (!res.ok) return ''
+    if (!res.ok) {
+      const { reportExtFailure } = await import('./ext-alert')
+      await reportExtFailure('lawyer-search', new Error(`HTTP ${res.status}`))
+      return ''
+    }
     const data = await res.json().catch(() => null) as { results?: SearchResult[] } | null
     const results = data?.results ?? []
     if (results.length === 0) return ''
@@ -27,7 +31,9 @@ export async function webSearch(query: string): Promise<string> {
       .map(r => `• ${r.title ?? ''} — ${r.snippet ?? ''} (${r.url ?? ''})`.trim())
       .join('\n')
       .slice(0, 3500)
-  } catch {
+  } catch (e) {
+    const { reportExtFailure } = await import('./ext-alert')
+    await reportExtFailure('lawyer-search', e)
     return ''
   }
 }

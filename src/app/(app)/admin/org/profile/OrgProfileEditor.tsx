@@ -111,7 +111,7 @@ export function OrgProfileEditor({
           <label className="block text-sm font-medium text-ink mb-1.5">Описание</label>
           <textarea value={description} maxLength={4000} rows={5}
             onChange={e => { setDescription(e.target.value); setSavedText(false) }}
-            placeholder="О вашем ЖК: инфраструктура, правила, контакты..."
+            placeholder="О вашей организации: инфраструктура, правила, контакты..."
             className="w-full px-3 py-2 border border-border rounded-xl text-sm resize-y focus:outline-none focus:border-forest" />
           <p className="text-xs text-ink/40 mt-1 text-right">{description.length} / 4000</p>
         </div>

@@ -59,7 +59,7 @@ export function AudienceSelector({ orgGroupId, activityId, onOrgGroupChange, onA
                 : 'bg-white text-ink/60 border-border hover:border-forest/40'
             }`}
           >
-            {m === 'default' ? 'Все участники ЖК' : m === 'orgGroup' ? 'Группа ЖК' : 'Активность'}
+            {m === 'default' ? 'Все участники организации' : m === 'orgGroup' ? 'Группа организаций' : 'Активность'}
           </button>
         ))}
       </div>
@@ -75,7 +75,7 @@ export function AudienceSelector({ orgGroupId, activityId, onOrgGroupChange, onA
             <option value="">— выберите группу —</option>
             {orgGroups.map(g => (
               <option key={g.id} value={g.id}>
-                {g.name} ({g.orgs.length} ЖК)
+                {g.name} ({g.orgs.length} орг.)
               </option>
             ))}
           </select>

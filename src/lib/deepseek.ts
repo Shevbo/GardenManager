@@ -1,4 +1,24 @@
 /**
+ * Единая обёртка над DeepSeek-гейтом: сбой сети или не-2xx ответ уходит в
+ * ext-alert (лог + колокольчик платформенным админам), после чего поведение
+ * прежнее — вызывающий код сам решает, что делать с ошибкой.
+ */
+async function dsFetch(init: RequestInit): Promise<Response> {
+  try {
+    const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, init)
+    if (!response.ok) {
+      const { reportExtFailure } = await import('./ext-alert')
+      await reportExtFailure('deepseek', new Error(`HTTP ${response.status}`))
+    }
+    return response
+  } catch (e) {
+    const { reportExtFailure } = await import('./ext-alert')
+    await reportExtFailure('deepseek', e)
+    throw e
+  }
+}
+
+/**
  * Модели DeepSeek-шлюза.
  * DOC_MODEL — для работы с текстом документов на сайте (СТРОГО, юр-обработка, ревизия).
  * CHAT_MODEL — лёгкая модель для болтовни (на будущее).
@@ -23,7 +43,7 @@ export async function revisePetitionWithComments(
     .map((c, i) => `[${i + 1}] ${c.user.name ?? c.user.email ?? 'Собственник'}: ${c.text}`)
     .join('\n')
 
-  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+  const response = await dsFetch({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -72,7 +92,7 @@ export async function summarizeDocument(title: string, body: string): Promise<st
     throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
   }
 
-  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+  const response = await dsFetch({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -132,7 +152,7 @@ export async function lawyerChat(
     body.tool_choice = 'auto'
   }
 
-  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+  const response = await dsFetch({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -182,7 +202,7 @@ export async function legalPolishText(draftText: string): Promise<RevisionResult
     throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
   }
 
-  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+  const response = await dsFetch({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -236,7 +256,7 @@ export async function applyRecommendation(documentText: string, recommendation: 
   if (!process.env.DEEPSEEK_API_KEY || !process.env.DEEPSEEK_BASE_URL) {
     throw new Error('DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL must be set')
   }
-  const response = await fetch(`${process.env.DEEPSEEK_BASE_URL}/chat/completions`, {
+  const response = await dsFetch({
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` },
     body: JSON.stringify({
