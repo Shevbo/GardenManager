@@ -1,17 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Building2, Users, Tag } from 'lucide-react'
 
-type Membership = {
-  membershipId: string
-  orgId: string
-  orgName: string
-  orgType: string
-  orgTypeLabel: string
-  apartmentNumber: string | null
-  buildingAddress: string | null
-}
+type Org = { orgId: string; name: string; typeLabel: string }
+type Named = { id: string; name: string }
 
 /** Short badge text from a type label (e.g. «Кооператив» → «КОО», «ГК» → «ГК»). */
 function typeBadge(label: string | undefined): string {
@@ -21,71 +14,68 @@ function typeBadge(label: string | undefined): string {
 
 export function OrgSelector() {
   const router = useRouter()
-  const [memberships, setMemberships] = useState<Membership[]>([])
-  const [activeMembershipId, setActiveMembershipId] = useState<string | null>(null)
+  const [orgs, setOrgs] = useState<Org[]>([])
+  const [groups, setGroups] = useState<Named[]>([])
+  const [activities, setActivities] = useState<Named[]>([])
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('garden_active_membership='))
-    const fromCookie = cookie ? cookie.split('=')[1] : null
-
-    fetch('/api/me/memberships')
+    fetch('/api/me/nav')
       .then(r => r.ok ? r.json() : null)
-      .then((d: { memberships?: Membership[] } | null) => {
-        if (!d?.memberships) return
-        setMemberships(d.memberships)
-        // Mirror the server's default (first membership by id) so the selector
-        // label matches the dashboard when no explicit choice has been made yet.
-        if (fromCookie && d.memberships.some(m => m.membershipId === fromCookie)) {
-          setActiveMembershipId(fromCookie)
-        } else if (d.memberships.length) {
-          setActiveMembershipId(
-            [...d.memberships].sort((a, b) => a.membershipId.localeCompare(b.membershipId))[0].membershipId,
-          )
-        }
+      .then((d: { activeOrgId?: string | null; orgs?: Org[]; groups?: Named[]; activities?: Named[] } | null) => {
+        if (!d) return
+        setOrgs(d.orgs ?? [])
+        setGroups(d.groups ?? [])
+        setActivities(d.activities ?? [])
+        setActiveOrgId(d.activeOrgId ?? null)
       })
       .catch(() => {})
   }, [])
 
-  async function pick(membershipId: string | null) {
+  async function pickOrg(orgId: string | null) {
     setOpen(false)
-    setActiveMembershipId(membershipId)
+    setActiveOrgId(orgId)
     await fetch('/api/me/active-org', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ membershipId }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId }),
     })
     router.refresh()
   }
 
-  if (memberships.length === 0) {
+  function go(href: string) {
+    setOpen(false)
+    router.push(href)
+  }
+
+  const isEmpty = orgs.length === 0 && groups.length === 0 && activities.length === 0
+  if (isEmpty) {
     return (
       <div className="px-3 py-3 border-b border-white/10">
         <div className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left opacity-60">
           <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
             <span className="text-white/40 text-xs font-bold">—</span>
           </div>
-          <p className="text-white/40 text-xs">Не привязан к ЖК</p>
+          <p className="text-white/40 text-xs">Не привязан к организации</p>
         </div>
       </div>
     )
   }
 
-  const active = activeMembershipId
-    ? memberships.find(m => m.membershipId === activeMembershipId)
-    : null
-
-  const label = active?.orgName ?? 'Все объекты'
+  const active = activeOrgId ? orgs.find(o => o.orgId === activeOrgId) : null
+  const label = active?.name ?? (orgs.length > 0 ? 'Все организации' : 'Навигация')
   const subLabel = active
-    ? [active.apartmentNumber && `кв. ${active.apartmentNumber}`, active.buildingAddress].filter(Boolean).join(' · ')
-    : `${memberships.length} объект${memberships.length === 1 ? '' : 'а'}`
+    ? active.typeLabel
+    : `${orgs.length} орг.${groups.length ? ` · ${groups.length} гр.` : ''}${activities.length ? ` · ${activities.length} акт.` : ''}`
 
   return (
     <div className="relative px-3 py-3 border-b border-white/10">
       <button onClick={() => setOpen(v => !v)}
         className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/10 transition-colors text-left">
         <div className="w-7 h-7 bg-amber/20 rounded-lg flex items-center justify-center shrink-0">
-          <span className="text-amber text-[10px] font-bold">{active ? typeBadge(active.orgTypeLabel) : 'Все'}</span>
+          {active
+            ? <span className="text-amber text-[10px] font-bold">{typeBadge(active.typeLabel)}</span>
+            : <Building2 size={14} className="text-amber" />}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-xs font-medium truncate">{label}</p>
@@ -95,21 +85,48 @@ export function OrgSelector() {
       </button>
 
       {open && (
-        <div className="absolute left-3 right-3 top-full mt-1 z-30 bg-forest border border-white/10 rounded-xl shadow-lg max-h-80 overflow-y-auto">
-          {memberships.length > 1 && (
-            <button onClick={() => pick(null)}
-              className={`w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 ${!activeMembershipId ? 'bg-white/15' : ''}`}>
-              <p className="font-medium">Все объекты</p>
-              <p className="text-white/50 text-[10px]">Сводный вид</p>
+        <div className="absolute left-3 right-3 top-full mt-1 z-30 bg-forest border border-white/10 rounded-xl shadow-lg max-h-96 overflow-y-auto py-1">
+          {/* Организации */}
+          {orgs.length > 0 && (
+            <p className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider text-white/40 font-bold">Организации</p>
+          )}
+          {orgs.length > 1 && (
+            <button onClick={() => pickOrg(null)}
+              className={`w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 flex items-center gap-2 ${!activeOrgId ? 'bg-white/15' : ''}`}>
+              <Building2 size={13} className="text-white/50 shrink-0" />
+              <span className="font-medium">Все организации</span>
             </button>
           )}
-          {memberships.map(m => (
-            <button key={m.membershipId} onClick={() => pick(m.membershipId)}
-              className={`w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 border-t border-white/5 ${activeMembershipId === m.membershipId ? 'bg-white/15' : ''}`}>
-              <p className="font-medium truncate">{m.orgName}</p>
-              <p className="text-white/50 text-[10px] truncate">
-                {[m.apartmentNumber && `кв. ${m.apartmentNumber}`, m.buildingAddress].filter(Boolean).join(' · ') || '—'}
-              </p>
+          {orgs.map(o => (
+            <button key={o.orgId} onClick={() => pickOrg(o.orgId)}
+              className={`w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 flex items-center gap-2 ${activeOrgId === o.orgId ? 'bg-white/15' : ''}`}>
+              <Building2 size={13} className="text-amber shrink-0" />
+              <span className="font-medium truncate flex-1">{o.name}</span>
+              <span className="text-white/40 text-[10px] shrink-0">{o.typeLabel}</span>
+            </button>
+          ))}
+
+          {/* Группы */}
+          {groups.length > 0 && (
+            <p className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider text-white/40 font-bold border-t border-white/5 mt-1">Группы</p>
+          )}
+          {groups.map(g => (
+            <button key={g.id} onClick={() => go('/admin/platform/org-groups')}
+              className="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 flex items-center gap-2">
+              <Users size={13} className="text-white/50 shrink-0" />
+              <span className="truncate">{g.name}</span>
+            </button>
+          ))}
+
+          {/* Активности */}
+          {activities.length > 0 && (
+            <p className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider text-white/40 font-bold border-t border-white/5 mt-1">Активности</p>
+          )}
+          {activities.map(a => (
+            <button key={a.id} onClick={() => go('/activities')}
+              className="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 flex items-center gap-2">
+              <Tag size={13} className="text-white/50 shrink-0" />
+              <span className="truncate">{a.name}</span>
             </button>
           ))}
         </div>
