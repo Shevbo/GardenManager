@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     where: { identifier, token: otp.trim(), expires: { gt: new Date() } },
   })
   if (!token) {
-    return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 })
+    return NextResponse.json({ error: 'Код не подходит или устарел. Пожалуйста, запросите новый код и попробуйте ещё раз.' }, { status: 400 })
   }
 
   await prisma.$transaction([

@@ -4,7 +4,8 @@ import { sendEmailOtp } from '@/lib/email'
 import prisma from '@/lib/prisma'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const OTP_TTL_MS = 10 * 60 * 1000
+// 3 часа (решение Бориса 2026-08-07): человек может дойти до почты не сразу.
+const OTP_TTL_MS = 3 * 60 * 60 * 1000
 
 export async function POST(req: NextRequest) {
   let body: unknown

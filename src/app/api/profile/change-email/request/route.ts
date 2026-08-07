@@ -5,7 +5,8 @@ import { sendEmailOtp } from '@/lib/email'
 import prisma from '@/lib/prisma'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const OTP_TTL_MS = 10 * 60 * 1000
+// Email-код действует 3 часа (как в регистрации; письмо обещает именно это)
+const OTP_TTL_MS = 3 * 60 * 60 * 1000
 
 export async function POST(req: NextRequest) {
   const session = await auth()

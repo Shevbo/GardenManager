@@ -34,12 +34,22 @@ export async function POST(req: NextRequest) {
 
   const emailNorm = email.trim().toLowerCase()
 
-  // Verify OTP without consuming (signIn will consume it later)
+  // Verify OTP without consuming (signIn will consume it later).
+  // Ищем без фильтра по сроку, чтобы вежливо различить «не тот код» и «код истёк».
   const token = await prisma.verificationToken.findFirst({
-    where: { identifier: emailNorm, token: otp.trim(), expires: { gt: new Date() } },
+    where: { identifier: emailNorm, token: otp.trim() },
   })
   if (!token) {
-    return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 })
+    return NextResponse.json(
+      { error: 'Код не подходит. Пожалуйста, сверьтесь с самым свежим письмом — или запросите новый код.' },
+      { status: 401 },
+    )
+  }
+  if (token.expires <= new Date()) {
+    return NextResponse.json(
+      { error: 'Срок действия кода истёк. Ничего страшного — запросите новый, и мы сразу его пришлём.' },
+      { status: 401 },
+    )
   }
 
   // Check existing user
