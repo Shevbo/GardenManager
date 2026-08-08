@@ -371,7 +371,8 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
               </button>
             )}
           </div>
-        ) : (
+        ) : null}
+        {phoneStep === 'input' ? <SmsSenderHint /> : (
           <form onSubmit={handleVerifyPhone} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>Код отправлен на {phone}</p>
             <SmsSenderHint compact />
