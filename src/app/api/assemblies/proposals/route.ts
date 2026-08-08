@@ -23,17 +23,42 @@ export async function GET(req: NextRequest) {
   const canDecide = await canManageOrgWorkflow(session.user.id, orgId)
   if (!membership && !canDecide) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const proposals = await prisma.assemblyTopicProposal.findMany({
-    where: { orgId },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-    select: {
-      id: true, title: true, description: true, status: true, createdAt: true,
-      decidedAt: true, decisionNote: true, assemblyId: true,
-      author: { select: { id: true, name: true } },
-    },
+  const [rows, org, myVotes, isOwnerRow] = await Promise.all([
+    prisma.assemblyTopicProposal.findMany({
+      where: { orgId },
+      take: 200,
+      select: {
+        id: true, title: true, description: true, status: true, createdAt: true,
+        decidedAt: true, decisionNote: true, assemblyId: true,
+        author: { select: { id: true, name: true } },
+        _count: { select: { votes: true } },
+      },
+    }),
+    prisma.organization.findUnique({ where: { id: orgId }, select: { agendaVoteLimit: true } }),
+    prisma.assemblyTopicVote.findMany({
+      where: { userId: session.user.id, proposal: { orgId } },
+      select: { proposalId: true },
+    }),
+    prisma.membership.findFirst({
+      where: { userId: session.user.id, orgId, isOwner: true }, select: { id: true },
+    }),
+  ])
+
+  const myVoted = new Set(myVotes.map(v => v.proposalId))
+  // Хит-парад: по голосам (убыв.), при равенстве — новее выше.
+  const proposals = rows
+    .map(r => ({ ...r, votes: r._count.votes, myVote: myVoted.has(r.id) }))
+    .sort((a, b) => b.votes - a.votes || b.createdAt.getTime() - a.createdAt.getTime())
+
+  const limit = org?.agendaVoteLimit ?? 5
+  const usedOpen = rows.filter(r => myVoted.has(r.id) && (r.status === 'PROPOSED' || r.status === 'ACCEPTED')).length
+
+  return NextResponse.json({
+    proposals, canDecide, meId: session.user.id,
+    canVote: !!isOwnerRow,
+    voteLimit: limit,
+    votesRemaining: Math.max(0, limit - usedOpen),
   })
-  return NextResponse.json({ proposals, canDecide, meId: session.user.id })
 }
 
 export async function POST(req: NextRequest) {

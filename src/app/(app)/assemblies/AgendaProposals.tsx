@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Lightbulb, Check, X, ListPlus } from 'lucide-react'
+import { Lightbulb, Check, X, ListPlus, ThumbsUp } from 'lucide-react'
 import { usePrompt } from '@/components/ui/dialog'
 
 type Proposal = {
@@ -13,6 +13,8 @@ type Proposal = {
   decisionNote: string | null
   assemblyId: string | null
   author: { id: string; name: string | null }
+  votes: number
+  myVote: boolean
 }
 
 const STATUS_BADGE: Record<Proposal['status'], { label: string; cls: string }> = {
@@ -28,6 +30,9 @@ export function AgendaProposals({ isOwner }: { isOwner: boolean }) {
   const prompt = usePrompt()
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [canDecide, setCanDecide] = useState(false)
+  const [canVote, setCanVote] = useState(false)
+  const [voteLimit, setVoteLimit] = useState(5)
+  const [votesRemaining, setVotesRemaining] = useState(0)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -38,9 +43,12 @@ export function AgendaProposals({ isOwner }: { isOwner: boolean }) {
     try {
       const r = await fetch('/api/assemblies/proposals')
       if (!r.ok) return
-      const d = await r.json() as { proposals: Proposal[]; canDecide: boolean }
+      const d = await r.json() as { proposals: Proposal[]; canDecide: boolean; canVote?: boolean; voteLimit?: number; votesRemaining?: number }
       setProposals(d.proposals)
       setCanDecide(d.canDecide)
+      setCanVote(!!d.canVote)
+      setVoteLimit(d.voteLimit ?? 5)
+      setVotesRemaining(d.votesRemaining ?? 0)
     } catch { /* следующая загрузка догонит */ }
   }, [])
 
@@ -58,6 +66,16 @@ export function AgendaProposals({ isOwner }: { isOwner: boolean }) {
       const d = await r.json().catch(() => ({}))
       if (!r.ok) { setError(d.error || 'Не удалось отправить'); return }
       setTitle(''); setDescription(''); setShowForm(false)
+      void load()
+    } finally { setBusy(false) }
+  }
+
+  async function toggleVote(p: Proposal) {
+    setBusy(true); setError('')
+    try {
+      const r = await fetch(`/api/assemblies/proposals/${p.id}/vote`, { method: 'POST' })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(d.error || 'Не удалось'); return }
       void load()
     } finally { setBusy(false) }
   }
@@ -110,7 +128,8 @@ export function AgendaProposals({ isOwner }: { isOwner: boolean }) {
         </div>
       </div>
       <p className="text-xs text-ink/50 mb-4">
-        Собственники предлагают темы для обсуждения; после «ОК» председателя принятые темы автоматически собираются в повестку собрания.
+        Собственники предлагают темы и голосуют за их включение; после «ОК» председателя принятые темы автоматически собираются в повестку собрания.
+        {canVote && <span className="block mt-0.5">Осталось ваших голосов: <b>{votesRemaining}</b> из {voteLimit}.</span>}
       </p>
 
       {showForm && (
@@ -138,10 +157,15 @@ export function AgendaProposals({ isOwner }: { isOwner: boolean }) {
         {proposals.length === 0 && (
           <p className="text-sm text-ink/40">Предложений пока нет{isOwner ? ' — предложите первую тему.' : '.'}</p>
         )}
-        {proposals.map(p => {
+        {proposals.map((p, rank) => {
           const badge = STATUS_BADGE[p.status]
+          const open = p.status === 'PROPOSED' || p.status === 'ACCEPTED'
           return (
             <div key={p.id} className="border border-border rounded-xl p-3 flex items-start gap-3">
+              {/* Хит-парад: место по числу голосов */}
+              <span className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                rank === 0 && p.votes > 0 ? 'bg-amber/20 text-amber-700' : 'bg-ink/5 text-ink/40'
+              }`}>{rank + 1}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-ink">{p.title}</p>
                 {p.description && <p className="text-xs text-ink/60 mt-0.5 line-clamp-2">{p.description}</p>}
@@ -153,6 +177,13 @@ export function AgendaProposals({ isOwner }: { isOwner: boolean }) {
                   )}
                 </p>
               </div>
+              <button onClick={() => canVote && open && toggleVote(p)} disabled={busy || !canVote || !open}
+                title={p.myVote ? 'Отозвать голос' : 'Голосовать за включение в повестку'}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  p.myVote ? 'bg-forest text-white' : 'bg-forest/10 text-forest hover:bg-forest/20'
+                } ${(!canVote || !open) ? 'opacity-50 cursor-default' : ''}`}>
+                <ThumbsUp size={13} /> {p.votes}
+              </button>
               <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${badge.cls}`}>
                 {badge.label}
               </span>

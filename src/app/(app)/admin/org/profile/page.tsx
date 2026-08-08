@@ -23,7 +23,7 @@ export default async function OrgProfilePage({ searchParams }: { searchParams: P
     prisma.organization.findUnique({
       where: { id: orgId },
       select: {
-        id: true, name: true, type: true, description: true, mapEmbedUrl: true,
+        id: true, name: true, type: true, description: true, mapEmbedUrl: true, agendaVoteLimit: true,
         photos: { orderBy: { sortOrder: 'asc' }, select: { id: true, isCover: true } },
       },
     }),
@@ -46,6 +46,7 @@ export default async function OrgProfilePage({ searchParams }: { searchParams: P
         orgTypes={orgTypes}
         initialDescription={org.description ?? ''}
         initialMapEmbedUrl={org.mapEmbedUrl ?? ''}
+        initialAgendaVoteLimit={org.agendaVoteLimit}
         initialPhotos={org.photos}
       />
     </div>

@@ -25,12 +25,12 @@ export async function PATCH(req: NextRequest) {
 
   let body: unknown
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const { orgId, name, type, description, mapEmbedUrl } = body as { orgId?: string; name?: string; type?: string; description?: string | null; mapEmbedUrl?: string | null }
+  const { orgId, name, type, description, mapEmbedUrl, agendaVoteLimit } = body as { orgId?: string; name?: string; type?: string; description?: string | null; mapEmbedUrl?: string | null; agendaVoteLimit?: number }
 
   if (!orgId) return NextResponse.json({ error: 'orgId required' }, { status: 400 })
   if (!(await isOrgAdmin(session.user.id, orgId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const data: { name?: string; type?: string; description?: string | null; mapEmbedUrl?: string | null } = {}
+  const data: { name?: string; type?: string; description?: string | null; mapEmbedUrl?: string | null; agendaVoteLimit?: number } = {}
 
   if (typeof name === 'string' && name.trim()) data.name = name.trim()
 
@@ -57,11 +57,19 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  if (agendaVoteLimit !== undefined) {
+    const n = Number(agendaVoteLimit)
+    if (!Number.isInteger(n) || n < 1 || n > 20) {
+      return NextResponse.json({ error: 'Лимит голосов за темы — целое число от 1 до 20' }, { status: 400 })
+    }
+    data.agendaVoteLimit = n
+  }
+
   if (Object.keys(data).length === 0) return NextResponse.json({ error: 'nothing to update' }, { status: 400 })
 
   const org = await prisma.organization.update({
     where: { id: orgId }, data,
-    select: { id: true, name: true, type: true, description: true, mapEmbedUrl: true },
+    select: { id: true, name: true, type: true, description: true, mapEmbedUrl: true, agendaVoteLimit: true },
   })
   return NextResponse.json({ org })
 }

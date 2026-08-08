@@ -69,6 +69,9 @@ model Organization {
   // Public profile of the org (shown on the group's home header).
   description String? @db.Text
   mapEmbedUrl String?
+  // «Вёрстка повестки»: за сколько тем собственник может голосовать для
+  // включения в одно собрание (считаются голоса по ещё открытым темам).
+  agendaVoteLimit Int @default(5)
 
   buildings       Building[]
   memberships     Membership[]
@@ -154,6 +157,7 @@ model User {
   assemblyComments      AssemblyComment[]
   assemblyTasks         AssemblyTask[]         @relation("TaskAssignee")
   topicProposals        AssemblyTopicProposal[] @relation("TopicProposalAuthor")
+  topicVotes            AssemblyTopicVote[]     @relation("TopicVoter")
 
   // Per-event notification preferences (in-app / email). JSON keyed by event
   // type: { dm, org_chat, petition_status, assembly_status: {inApp, email} }.
@@ -551,9 +555,25 @@ model AssemblyTopicProposal {
   org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   author   User         @relation("TopicProposalAuthor", fields: [createdBy], references: [id], onDelete: Cascade)
   assembly Assembly?    @relation(fields: [assemblyId], references: [id], onDelete: SetNull)
+  votes    AssemblyTopicVote[]
 
   @@index([orgId, status])
   @@index([createdBy])
+}
+
+// Голос собственника ЗА включение темы в повестку (toggle). Лимит на человека —
+// Organization.agendaVoteLimit, считается по голосам за открытые темы.
+model AssemblyTopicVote {
+  id         String   @id @default(cuid())
+  proposalId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  proposal AssemblyTopicProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User                  @relation("TopicVoter", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, userId])
+  @@index([userId])
 }
 
 // ПЭП-подпись собрания через СМС (mirror of PetitionSignature). One per owner

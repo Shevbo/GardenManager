@@ -11,6 +11,7 @@ export function OrgProfileEditor({
   initialType,
   orgTypes,
   initialDescription,
+  initialAgendaVoteLimit,
   initialMapEmbedUrl,
   initialPhotos,
 }: {
@@ -19,6 +20,7 @@ export function OrgProfileEditor({
   initialType: string
   orgTypes: Array<{ code: string; label: string }>
   initialDescription: string
+  initialAgendaVoteLimit: number
   initialMapEmbedUrl: string
   initialPhotos: Photo[]
 }) {
@@ -26,6 +28,7 @@ export function OrgProfileEditor({
   const [name, setName] = useState(initialName)
   const [type, setType] = useState(initialType)
   const [description, setDescription] = useState(initialDescription)
+  const [agendaVoteLimit, setAgendaVoteLimit] = useState(String(initialAgendaVoteLimit))
   const [mapEmbedUrl, setMapEmbedUrl] = useState(initialMapEmbedUrl)
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos)
   const [savingText, setSavingText] = useState(false)
@@ -39,7 +42,7 @@ export function OrgProfileEditor({
     try {
       const r = await fetch('/api/admin/org/profile', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, name, type, description, mapEmbedUrl }),
+        body: JSON.stringify({ orgId, name, type, description, mapEmbedUrl, agendaVoteLimit: Number(agendaVoteLimit) || undefined }),
       })
       if (!r.ok) { const d = await r.json().catch(() => ({})); setError(d.error || 'Не удалось сохранить'); return }
       setSavedText(true); router.refresh()
@@ -114,6 +117,15 @@ export function OrgProfileEditor({
             placeholder="О вашей организации: инфраструктура, правила, контакты..."
             className="w-full px-3 py-2 border border-border rounded-xl text-sm resize-y focus:outline-none focus:border-forest" />
           <p className="text-xs text-ink/40 mt-1 text-right">{description.length} / 4000</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink mb-1.5">Лимит голосов за темы повестки</label>
+          <input type="number" min={1} max={20} value={agendaVoteLimit}
+            onChange={e => { setAgendaVoteLimit(e.target.value); setSavedText(false) }}
+            className="w-28 px-3 py-2 border border-border rounded-xl text-sm focus:outline-none focus:border-forest" />
+          <p className="text-xs text-ink/40 mt-1">
+            За сколько тем собственник может голосовать для включения в одно собрание (по умолчанию 5).
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-ink mb-1.5">Яндекс-карта</label>
