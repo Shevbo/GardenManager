@@ -131,6 +131,18 @@ export async function POST(
   const trimmed = content?.trim() ?? ''
   if (!trimmed) return NextResponse.json({ error: 'content is required' }, { status: 400 })
 
+  // Второй эшелон защиты от prompt-injection (первый — правила в системном
+  // промпте): подозрительный вопрос НЕ уходит в ИИ, админам летит СМС-сигнал.
+  const { detectPromptInjection, reportInjectionAttempt } = await import('@/lib/prompt-guard')
+  const injection = detectPromptInjection(trimmed)
+  if (injection) {
+    await reportInjectionAttempt({ petitionId: id, userId: session.user.id, pattern: injection, sample: trimmed })
+    return NextResponse.json(
+      { error: 'Вопрос отклонён: похоже на попытку изменить поведение ИИ-юриста или получить закрытые данные. Задайте юридический вопрос по вашему документу.' },
+      { status: 400 },
+    )
+  }
+
   const isAdmin = await resolveIsAdmin(session.user.id, petition.orgId)
 
   if (!isAdmin) {
