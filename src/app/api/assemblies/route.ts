@@ -41,12 +41,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { orgId, title, description, type, startsAt, endsAt, quorumPercent, questions } =
+  const { orgId, title, description, type, startsAt, endsAt, quorumPercent, questions, proposalIds } =
     body as {
       orgId?: string; title?: string; description?: string
       type?: 'online' | 'async_collect'
       startsAt?: string; endsAt?: string; quorumPercent?: number
       questions?: Array<{ text: string; description?: string; requiredMajorityPct?: number }>
+      /** «Вёрстка повестки»: принятые предложения, вошедшие в это собрание. */
+      proposalIds?: string[]
     }
 
   if (!orgId || !title?.trim() || !type || !startsAt || !endsAt) {
@@ -88,6 +90,29 @@ export async function POST(req: NextRequest) {
     },
     include: { questions: { orderBy: { order: 'asc' } } },
   })
+
+  // «Вёрстка повестки»: включённые предложения → INCLUDED + линк на собрание,
+  // авторам — уведомление (по prefs, best-effort). Только ACCEPTED своей орги.
+  if (proposalIds && Array.isArray(proposalIds) && proposalIds.length > 0) {
+    try {
+      const included = await prisma.assemblyTopicProposal.findMany({
+        where: { id: { in: proposalIds }, orgId, status: 'ACCEPTED' },
+        select: { id: true, title: true, createdBy: true },
+      })
+      await prisma.assemblyTopicProposal.updateMany({
+        where: { id: { in: included.map(p => p.id) } },
+        data: { status: 'INCLUDED', assemblyId: assembly.id },
+      })
+      const { notifyAgenda } = await import('@/lib/notify')
+      await Promise.all(included
+        .filter(p => p.createdBy !== session.user!.id)
+        .map(p => notifyAgenda(p.createdBy,
+          `Ваша тема вошла в повестку собрания «${assembly.title}»`,
+          `«${p.title}» — обсуждение и голосование откроются по расписанию собрания.`)))
+    } catch (e) {
+      console.error('[assemblies] proposal linking failed:', (e as Error).message)
+    }
+  }
 
   return NextResponse.json(assembly, { status: 201 })
 }

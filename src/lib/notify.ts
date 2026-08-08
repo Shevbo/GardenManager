@@ -37,6 +37,11 @@ export async function notifyDM(toUserId: string, fromName: string, href: string,
   await deliver(toUserId, 'dm', `Новое сообщение от ${fromName}`, href, preview)
 }
 
+/** «Вёрстка повестки»: события по предложениям тем (автору и управляющим). */
+export async function notifyAgenda(toUserId: string, title: string, body?: string) {
+  await deliver(toUserId, 'agenda', title, '/assemblies', body)
+}
+
 async function orgMemberIds(orgId: string, exceptUserId?: string): Promise<string[]> {
   const rows = await prisma.membership.findMany({ where: { orgId }, select: { userId: true }, distinct: ['userId'] })
   return rows.map(r => r.userId).filter(id => id !== exceptUserId)

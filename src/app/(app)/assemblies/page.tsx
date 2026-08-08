@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Plus, Vote, Calendar } from 'lucide-react'
 import { getActiveOrgId } from '@/lib/active-org'
 import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
+import { AgendaProposals } from './AgendaProposals'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,10 @@ export default async function AssembliesPage() {
   // должности правления), а НЕ по Membership.role: собственник может быть
   // председателем/админом, и раньше кнопка от него пряталась.
   const isAdmin = activeOrgId ? await canManageOrgWorkflow(session.user.id, activeOrgId) : false
+  const ownerMembership = activeOrgId ? await prisma.membership.findFirst({
+    where: { userId: session.user.id, orgId: activeOrgId, isOwner: true }, select: { id: true },
+  }) : null
+  const isOwner = !!ownerMembership || isAdmin
 
   const assemblies = !activeOrgId ? [] : await prisma.assembly.findMany({
     where: { orgId: activeOrgId },
@@ -60,6 +65,9 @@ export default async function AssembliesPage() {
           {WORKFLOW_FORBIDDEN_MESSAGE}.
         </p>
       )}
+
+      {/* «Вёрстка повестки»: предложения тем от собственников */}
+      {activeOrgId && <AgendaProposals isOwner={isOwner} />}
 
       <div className="space-y-2.5">
         {assemblies.map(a => (

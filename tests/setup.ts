@@ -31,6 +31,7 @@ vi.mock('@/lib/prisma', () => ({
     orgRoleAssignment: makeMock(),
     auditLog: makeMock(),
     notification: makeMock(),
+    assemblyTopicProposal: makeMock(),
     orgTypeRef: makeMock(),
     petition: makeMock(),
     petitionMaterial: makeMock(),

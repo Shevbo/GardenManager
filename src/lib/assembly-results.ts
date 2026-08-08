@@ -11,6 +11,8 @@ export type QuestionResult = {
   forVotes: number
   againstVotes: number
   abstainVotes: number
+  /** Из них «воздержался» дозаписан сервером за пустой ответ бюллетеня (справочно). */
+  autoAbstainVotes: number
   participatingVotes: number
   notVotedCount: number // reference — eligible owners who did not vote
   totalEligible: number
@@ -68,8 +70,14 @@ export async function computeResults(assemblyId: string): Promise<AssemblyResult
 
   const allVotes = await prisma.assemblyVote.findMany({
     where: { question: { assemblyId } },
-    select: { questionId: true, choice: true, areaSqm: true, userId: true, isOwner: true },
+    select: { questionId: true, choice: true, areaSqm: true, userId: true, isOwner: true, auto: true },
   })
+  const autoAbstainByQuestion = new Map<string, number>()
+  for (const v of allVotes) {
+    if (v.auto && v.choice === 'ABSTAIN') {
+      autoAbstainByQuestion.set(v.questionId, (autoAbstainByQuestion.get(v.questionId) ?? 0) + 1)
+    }
+  }
 
   const input: TallyInput = {
     quorumPercent: assembly.quorumPercent,
@@ -118,6 +126,7 @@ export async function computeResults(assemblyId: string): Promise<AssemblyResult
       forVotes: q.forVotes,
       againstVotes: q.againstVotes,
       abstainVotes: q.abstainVotes,
+      autoAbstainVotes: autoAbstainByQuestion.get(q.questionId) ?? 0,
       participatingVotes: q.participatingVotes,
       notVotedCount: q.notVotedCount,
       totalEligible: q.totalEligibleCount,

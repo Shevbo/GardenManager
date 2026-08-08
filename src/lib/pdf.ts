@@ -125,6 +125,7 @@ interface AssemblyProtocolInput {
     forVotes: number
     againstVotes: number
     abstainVotes: number
+    autoAbstainVotes?: number
     participatingVotes: number
     notVotedCount: number
     forPct: number
@@ -187,7 +188,8 @@ function AssemblyProtocolPDF(input: AssemblyProtocolInput) {
             createElement(Text, {}, `Требуемое большинство: ${q.requiredMajorityPct}%`),
             createElement(Text, {}, `За: ${q.forVotes} голос. (${q.forArea.toFixed(2)} м²) — ${q.forPct.toFixed(1)}%`),
             createElement(Text, {}, `Против: ${q.againstVotes} голос. (${q.againstArea.toFixed(2)} м²)`),
-            createElement(Text, {}, `Воздержались: ${q.abstainVotes} голос. (${q.abstainArea.toFixed(2)} м²)`),
+            createElement(Text, {}, `Воздержались: ${q.abstainVotes} голос. (${q.abstainArea.toFixed(2)} м²)` +
+              ((q.autoAbstainVotes ?? 0) > 0 ? ` — в т.ч. автоматически за вопросы без ответа в бюллетене: ${q.autoAbstainVotes}` : '')),
             createElement(Text, { style: { color: '#555' } }, `Не голосовали (справочно): ${q.notVotedCount} собств. (${q.notVotedArea.toFixed(2)} м²)`),
             createElement(Text, { style: { fontWeight: 'bold', marginTop: 2, color: q.passed ? '#0A3D2E' : '#B91C1C' } },
               q.passed ? 'РЕШЕНИЕ ПРИНЯТО' : 'РЕШЕНИЕ НЕ ПРИНЯТО'),

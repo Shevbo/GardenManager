@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useAssemblyLive, VotingCountdown, LiveCounters } from './LiveVoting'
 import { useRouter } from 'next/navigation'
 import { ThumbsUp, ThumbsDown, Minus, Calendar, Users, FileText, Download } from 'lucide-react'
 import { useConfirm } from '@/components/ui/dialog'
@@ -71,6 +72,9 @@ type Props = {
 export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, canVote, membership, myVotes, results, hasSigned, signatureCount }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
+  // Живые интерим-итоги + серверное время (поллинг 7с, только пока идёт голосование)
+  const { data: live, refresh: refreshLive, skewRef } = useAssemblyLive(assembly.id, assembly.status === 'VOTING')
+  const [deadlinePassed, setDeadlinePassed] = useState(() => new Date(assembly.endsAt).getTime() <= Date.now())
   const [choices, setChoices] = useState<Record<string, Choice>>(() => {
     const init: Record<string, Choice> = {}
     for (const v of myVotes) init[v.questionId] = v.choice
@@ -101,7 +105,7 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
     } finally { setSigning(false) }
   }
 
-  const allAnswered = assembly.questions.every(q => choices[q.id])
+  const answeredAny = assembly.questions.some(q => choices[q.id])
   const hasExistingVote = myVotes.length > 0
 
   async function transition(status: Assembly['status']) {
@@ -132,10 +136,20 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
   }
 
   async function submitVotes() {
-    if (!allAnswered) { setError('Ответьте на все вопросы'); return }
+    const answeredCount = assembly.questions.filter(q => choices[q.id]).length
+    if (answeredCount === 0) { setError('Ответьте хотя бы на один вопрос'); return }
+    if (answeredCount < assembly.questions.length) {
+      const skipped = assembly.questions.length - answeredCount
+      const ok = await confirm({
+        title: 'Отправить бюллетень не полностью?',
+        message: `Вопросов без ответа: ${skipped}. По ним будет автоматически засчитано «воздержался». Изменить голос можно до окончания голосования.`,
+        confirmLabel: 'Отправить',
+      })
+      if (!ok) return
+    }
     setVoting(true); setError('')
     try {
-      const votes = assembly.questions.map(q => ({ questionId: q.id, choice: choices[q.id]! }))
+      const votes = assembly.questions.filter(q => choices[q.id]).map(q => ({ questionId: q.id, choice: choices[q.id]! }))
       const r = await fetch(`/api/assemblies/${assembly.id}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,6 +160,7 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
         setError(d.error || 'Не удалось проголосовать')
         return
       }
+      void refreshLive()
       router.refresh()
     } finally { setVoting(false) }
   }
@@ -174,6 +189,13 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
         <span>·</span>
         <span>Кворум: {assembly.quorumPercent}%</span>
       </div>
+
+      {/* Таймер + правило автовоздержания — ШАПКА (требование Бориса) */}
+      {assembly.status === 'VOTING' && (
+        <div className="mb-5">
+          <VotingCountdown endsAt={assembly.endsAt} skewMs={skewRef.current} onExpire={() => setDeadlinePassed(true)} />
+        </div>
+      )}
 
       {/* Admin controls */}
       {isAdmin && (
@@ -256,7 +278,7 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
               </div>
 
               {/* Voting buttons */}
-              {canVote && (
+              {canVote && !deadlinePassed && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   {(['FOR', 'AGAINST', 'ABSTAIN'] as Choice[]).map(c => {
                     const selected = myChoice === c
@@ -279,6 +301,12 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
                   })}
                 </div>
               )}
+
+              {/* Живые интерим-итоги (видны всем участникам, пока идёт голосование) */}
+              {assembly.status === 'VOTING' && (() => {
+                const lq = live?.questions.find(x => x.questionId === q.id)
+                return lq ? <LiveCounters q={lq} totalEligible={live!.totalEligible} /> : null
+              })()}
 
               {/* Read-only: user already voted (not in voting mode) */}
               {!canVote && myChoice && assembly.status !== 'CLOSED' && (
@@ -305,7 +333,10 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
                   <div className="text-xs text-ink/60 grid grid-cols-3 gap-2">
                     <div>За: {result.forVotes} гол. ({result.forArea.toFixed(1)} м²)</div>
                     <div>Против: {result.againstVotes} гол. ({result.againstArea.toFixed(1)} м²)</div>
-                    <div>Воздерж.: {result.abstainVotes} гол. ({result.abstainArea.toFixed(1)} м²)</div>
+                    <div>
+                      Воздерж.: {result.abstainVotes} гол. ({result.abstainArea.toFixed(1)} м²)
+                      {result.autoAbstainVotes > 0 && <span className="block text-ink/40">в т.ч. автоматически: {result.autoAbstainVotes}</span>}
+                    </div>
                   </div>
                   <div className="text-xs text-ink/50">
                     {result.majorityBasis === 'TOTAL' ? 'От всех собственников' : 'От проголосовавших'}
@@ -367,15 +398,23 @@ export function AssemblyRoom({ assembly, isAdmin, canApprove, currentUserId, can
         </div>
       )}
 
+      {/* Таймер + правило автовоздержания — НИЗ ФОРМЫ (требование Бориса) */}
+      {assembly.status === 'VOTING' && (
+        <div className="mt-5">
+          <VotingCountdown endsAt={assembly.endsAt} skewMs={skewRef.current} onExpire={() => setDeadlinePassed(true)} />
+        </div>
+      )}
+
       {/* Vote submit */}
-      {canVote && (
-        <div className="sticky bottom-0 bg-cream/95 backdrop-blur border-t border-border -mx-8 px-8 py-3 mt-5 flex items-center justify-between gap-3">
+      {canVote && !deadlinePassed && (
+        <div className="sticky bottom-0 bg-cream/95 backdrop-blur border-t border-border -mx-8 px-8 py-3 mt-5 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-xs text-ink/60">
             Ваш голос: 1 (площадь {membership.areaSqm} м²)
             {hasExistingVote && ' · уже проголосовали — можно изменить'}
+            <span className="block text-ink/45">Вопросы без ответа будут засчитаны как «воздержался».</span>
           </p>
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button onClick={submitVotes} disabled={!allAnswered || voting}
+          <button onClick={submitVotes} disabled={!answeredAny || voting}
             className="px-5 py-2.5 bg-forest text-white rounded-xl text-sm font-medium disabled:opacity-50">
             {voting ? 'Отправляем...' : hasExistingVote ? 'Изменить голос' : 'Проголосовать'}
           </button>

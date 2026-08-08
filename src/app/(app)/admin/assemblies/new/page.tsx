@@ -1,13 +1,26 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Trash2 } from 'lucide-react'
 
 type Question = { text: string; description: string; requiredMajorityPct: number }
 
+// useSearchParams требует Suspense-границу при сборке (Next 16)
 export default function NewAssemblyPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewAssemblyForm />
+    </Suspense>
+  )
+}
+
+function NewAssemblyForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // «Вёрстка повестки»: ?fromProposals=id1,id2 — предзаполнить вопросы принятыми темами
+  const fromProposals = searchParams.get('fromProposals')
+  const [proposalIds, setProposalIds] = useState<string[]>([])
   const [orgId, setOrgId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -24,6 +37,20 @@ export default function NewAssemblyPage() {
       if (d.orgId) setOrgId(d.orgId)
     }).catch(() => {})
   }, [])
+
+  // Предзаполнение повестки принятыми темами (правим свободно до отправки).
+  useEffect(() => {
+    if (!fromProposals) return
+    const wanted = fromProposals.split(',').filter(Boolean)
+    fetch('/api/assemblies/proposals').then(r => r.json()).then((d: { proposals?: Array<{ id: string; title: string; description: string | null; status: string }> }) => {
+      const accepted = (d.proposals ?? []).filter(p => p.status === 'ACCEPTED' && wanted.includes(p.id))
+      if (accepted.length === 0) return
+      setProposalIds(accepted.map(p => p.id))
+      setQuestions(accepted.map(p => ({ text: p.title, description: p.description ?? '', requiredMajorityPct: 50 })))
+      setTitle(t => t || 'Общее собрание собственников')
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromProposals])
 
   function updateQ(i: number, patch: Partial<Question>) {
     setQuestions(qs => qs.map((q, idx) => idx === i ? { ...q, ...patch } : q))
@@ -49,6 +76,7 @@ export default function NewAssemblyPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          proposalIds: proposalIds.length > 0 ? proposalIds : undefined,
           orgId, title, description, type,
           startsAt, endsAt,
           quorumPercent,

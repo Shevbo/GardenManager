@@ -23,7 +23,12 @@ export async function POST(
 
   const { votes } = body as { votes?: Array<{ questionId: string; choice: VoteChoice }> }
   if (!votes || !Array.isArray(votes) || votes.length === 0) {
-    return NextResponse.json({ error: 'votes required' }, { status: 400 })
+    // Пустой бюллетень = не участие: авто-воздержание применяется только к
+    // ОТПРАВЛЕННОМУ бюллетеню (правило Бориса 2026-08-08).
+    return NextResponse.json(
+      { error: 'Бюллетень пуст — ответьте хотя бы на один вопрос. Вопросы без ответа будут засчитаны как «воздержался».' },
+      { status: 400 },
+    )
   }
 
   const assembly = await prisma.assembly.findUnique({
@@ -37,8 +42,14 @@ export async function POST(
   }
 
   const now = new Date()
-  if (now < assembly.startsAt || now > assembly.endsAt) {
-    return NextResponse.json({ error: 'Voting period inactive' }, { status: 400 })
+  if (now < assembly.startsAt) {
+    return NextResponse.json({ error: 'Голосование ещё не началось.' }, { status: 400 })
+  }
+  if (now > assembly.endsAt) {
+    return NextResponse.json(
+      { error: 'Голосование завершилось. Не отправившие бюллетень считаются не участвовавшими.' },
+      { status: 400 },
+    )
   }
 
   // A voter may hold several apartments (memberships) in the org — treat them as
@@ -66,23 +77,35 @@ export async function POST(
     }
   }
 
+  // Частичный бюллетень: явные ответы — как отправлены; вопросы без ответа
+  // дозаписываются «воздержался» с пометкой auto (видна в протоколе справочно).
+  const answered = new Set(votes.map(v => v.questionId))
+  const autoAbstains = assembly.questions
+    .filter(q => !answered.has(q.id))
+    .map(q => ({ questionId: q.id, choice: 'ABSTAIN' as VoteChoice, auto: true }))
+  const allBallots = [
+    ...votes.map(v => ({ ...v, auto: false })),
+    ...autoAbstains,
+  ]
+
   await prisma.$transaction(
-    votes.map(v =>
+    allBallots.map(v =>
       prisma.assemblyVote.upsert({
         where: { questionId_userId: { questionId: v.questionId, userId: session.user!.id } },
-        update: { choice: v.choice, areaSqm, isOwner: true },
+        update: { choice: v.choice, areaSqm, isOwner: true, auto: v.auto },
         create: {
           questionId: v.questionId,
           userId: session.user!.id,
           choice: v.choice,
           areaSqm,
           isOwner: true,
+          auto: v.auto,
         },
       })
     )
   )
 
-  return NextResponse.json({ ok: true, count: votes.length })
+  return NextResponse.json({ ok: true, count: votes.length, autoAbstained: autoAbstains.length })
 }
 
 export async function GET(
