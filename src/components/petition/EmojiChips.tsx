@@ -40,18 +40,29 @@ export function EmojiChips({ entityType, entityId, petitionId, reactions: initia
     if (!currentUserId) return
 
     setReactions(prev => {
-      const existing = prev.find(r => r.emoji === emoji)
-      if (existing) {
-        const hadMine = existing.hasMyReaction
-        return prev
-          .map(r => r.emoji === emoji
-            ? { ...r, count: r.count + (hadMine ? -1 : 1), hasMyReaction: !hadMine,
-                users: hadMine ? r.users.filter(u => u !== 'Вы') : [...r.users, 'Вы'] }
-            : r
-          )
-          .filter(r => r.count > 0)
+      // Одна реакция на пользователя (правило Бориса): выбор нового смайла
+      // ЗАМЕНЯЕТ прежний — сервер делает так же, оптимистика обязана совпадать.
+      const target = prev.find(r => r.emoji === emoji)
+      const removingSame = !!target?.hasMyReaction
+
+      // 1) снять мою прежнюю реакцию с любого другого смайла
+      let next = prev.map(r => r.hasMyReaction && r.emoji !== emoji
+        ? { ...r, count: r.count - 1, hasMyReaction: false, users: r.users.filter(u => u !== 'Вы') }
+        : r)
+
+      // 2) обработать целевой смайл: клик по своему = снять, по чужому/новому = поставить
+      if (removingSame) {
+        next = next.map(r => r.emoji === emoji
+          ? { ...r, count: r.count - 1, hasMyReaction: false, users: r.users.filter(u => u !== 'Вы') }
+          : r)
+      } else if (target) {
+        next = next.map(r => r.emoji === emoji
+          ? { ...r, count: r.count + 1, hasMyReaction: true, users: [...r.users, 'Вы'] }
+          : r)
+      } else {
+        next = [...next, { emoji, count: 1, hasMyReaction: true, users: ['Вы'] }]
       }
-      return [...prev, { emoji, count: 1, hasMyReaction: true, users: ['Вы'] }]
+      return next.filter(r => r.count > 0)
     })
 
     await fetch(apiUrl, {

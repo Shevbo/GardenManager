@@ -21,7 +21,7 @@ describe('POST /api/register/submit', () => {
     const req = new Request('http://localhost/api/register/submit', {
       method: 'POST',
       body: JSON.stringify({
-        email: 'x@y.z', otp: '111111', fullName: 'Test',
+        email: 'x@y.z', otp: '111111', password: 'testpass99', fullName: 'Test',
         rawAddress: 'Москва, ул. Садовая, д. 12'
       }),
       headers: { 'Content-Type': 'application/json' },
@@ -48,7 +48,7 @@ describe('POST /api/register/submit', () => {
     const req = new Request('http://localhost/api/register/submit', {
       method: 'POST',
       body: JSON.stringify({
-        email: 'x@y.z', otp: '111111', fullName: 'Test',
+        email: 'x@y.z', otp: '111111', password: 'testpass99', fullName: 'Test',
         rawAddress: 'Москва, ул. Садовая, д. 12',
         apartmentNumber: '47', areaSqm: 55.5,
       }),
@@ -74,7 +74,7 @@ describe('POST /api/register/submit', () => {
     const req = new Request('http://localhost/api/register/submit', {
       method: 'POST',
       body: JSON.stringify({
-        email: 'x@y.z', otp: '111111', fullName: 'Test',
+        email: 'x@y.z', otp: '111111', password: 'testpass99', fullName: 'Test',
         rawAddress: 'Москва, ул. Новая, д. 5',
         apartmentNumber: '17',
       }),
@@ -97,7 +97,7 @@ describe('POST /api/register/submit', () => {
     const req = new Request('http://localhost/api/register/submit', {
       method: 'POST',
       body: JSON.stringify({
-        email: 'x@y.z', otp: '111111', fullName: 'Test',
+        email: 'x@y.z', otp: '111111', password: 'testpass99', fullName: 'Test',
         rawAddress: 'Москва, ул. Садовая, д. 12',
       }),
       headers: { 'Content-Type': 'application/json' },

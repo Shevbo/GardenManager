@@ -37,6 +37,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials?.password as string | undefined
         if (!email || !password) return null
 
+        // 1) Локальный пароль garden-аккаунта (задаётся при регистрации кодом).
+        const { verifyLocalPassword } = await import('./local-password')
+        const local = await verifyLocalPassword(email, password)
+        if (local) {
+          return { id: local.id, email: local.email ?? undefined, name: local.name ?? undefined }
+        }
+
+        // 2) Fallback — мост к shectory-portal (для учёток портала).
         const profile = await verifyViaBridge(email, password)
         if (!profile) return null
 

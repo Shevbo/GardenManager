@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { findBuildingForAddress } from '@/lib/building-lookup'
+import { hashPassword, validatePasswordPolicy } from '@/lib/local-password'
 import { notifyAdminNewRegistration } from '@/lib/notifications'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -12,10 +13,10 @@ export async function POST(req: NextRequest) {
   }
 
   const {
-    email, otp, fullName, rawAddress,
+    email, otp, password, fullName, rawAddress,
     apartmentNumber, areaSqm,
   } = body as {
-    email?: string; otp?: string; fullName?: string; rawAddress?: string
+    email?: string; otp?: string; password?: string; fullName?: string; rawAddress?: string
     apartmentNumber?: string; areaSqm?: number
   }
 
@@ -31,6 +32,13 @@ export async function POST(req: NextRequest) {
   if (!rawAddress?.trim()) {
     return NextResponse.json({ error: 'rawAddress required' }, { status: 400 })
   }
+  // Пароль придумывается вместе с кодом (решение Бориса 2026-08-08).
+  if (typeof password !== 'string' || !password) {
+    return NextResponse.json({ error: 'Придумайте пароль — он нужен для входа на сайт.' }, { status: 400 })
+  }
+  const policyError = validatePasswordPolicy(password)
+  if (policyError) return NextResponse.json({ error: policyError }, { status: 400 })
+  const passwordHash = await hashPassword(password)
 
   const emailNorm = email.trim().toLowerCase()
 
@@ -74,12 +82,12 @@ export async function POST(req: NextRequest) {
       const u = existing
         ? await tx.user.update({
             where: { id: existing.id },
-            data: { name: fullName.trim(), emailVerified: new Date(), status: 'ACTIVE', profileCompleted: true },
+            data: { name: fullName.trim(), emailVerified: new Date(), status: 'ACTIVE', profileCompleted: true, password: passwordHash },
           })
         : await tx.user.create({
             data: {
               email: emailNorm, name: fullName.trim(), emailVerified: new Date(),
-              status: 'ACTIVE', profileCompleted: true,
+              status: 'ACTIVE', profileCompleted: true, password: passwordHash,
             },
           })
 
@@ -130,12 +138,13 @@ export async function POST(req: NextRequest) {
             emailVerified: new Date(),
             status: 'PENDING',
             profileCompleted: true,
+            password: passwordHash,
           },
         })
       : await tx.user.create({
           data: {
             email: emailNorm, name: fullName.trim(), emailVerified: new Date(),
-            status: 'PENDING', profileCompleted: true,
+            status: 'PENDING', profileCompleted: true, password: passwordHash,
           },
         })
 

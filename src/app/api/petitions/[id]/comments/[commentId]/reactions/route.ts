@@ -51,17 +51,14 @@ export async function POST(
 
   const userId = session.user.id
 
-  const existing = await prisma.commentReaction.findFirst({
-    where: { commentId, userId },
-  })
+  // Одна реакция на пользователя: клик по своему смайлу снимает её, по другому —
+  // заменяет. deleteMany, а не delete: старые данные могли накопить несколько строк.
+  const mine = await prisma.commentReaction.findMany({ where: { commentId, userId } })
+  const clickedSame = mine.some(r => r.emoji === emoji)
+  await prisma.commentReaction.deleteMany({ where: { commentId, userId } })
 
-  if (existing && existing.emoji === emoji) {
-    await prisma.commentReaction.delete({ where: { id: existing.id } })
+  if (clickedSame) {
     return NextResponse.json({ added: false })
-  }
-
-  if (existing) {
-    await prisma.commentReaction.delete({ where: { id: existing.id } })
   }
 
   await prisma.commentReaction.create({ data: { commentId, userId, emoji } })

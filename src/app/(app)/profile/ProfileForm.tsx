@@ -10,6 +10,7 @@ interface Props {
   initialEmail: string | null
   emailVerified?: boolean
   initialContactDisclosure?: string | null
+  hasPassword?: boolean
 }
 
 const DISCLOSURE_OPTIONS = [
@@ -18,7 +19,7 @@ const DISCLOSURE_OPTIONS = [
   { value: 'none', label: 'Не раскрывать', hint: 'мои контакты не передаются' },
 ]
 
-export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, emailVerified, initialContactDisclosure }: Props) {
+export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, emailVerified, initialContactDisclosure, hasPassword = false }: Props) {
   const [name, setName] = useState(initialName ?? '')
   const [address, setAddress] = useState(initialAddress ?? '')
   const [saving, setSaving] = useState(false)
@@ -98,6 +99,26 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
   const [phone, setPhone] = useState(initialPhone ?? '')
   const [phoneStep, setPhoneStep] = useState<'input' | 'otp'>('input')
   const [isPhoneVerified, setIsPhoneVerified] = useState(phoneVerified)
+  const [pwdHas, setPwdHas] = useState(hasPassword)
+  const [pwdCurrent, setPwdCurrent] = useState('')
+  const [pwdNew, setPwdNew] = useState('')
+  const [pwdBusy, setPwdBusy] = useState(false)
+  const [pwdMsg, setPwdMsg] = useState('')
+  const [pwdErr, setPwdErr] = useState('')
+
+  async function savePassword() {
+    setPwdBusy(true); setPwdErr(''); setPwdMsg('')
+    try {
+      const r = await fetch('/api/profile/password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwdCurrent || undefined, newPassword: pwdNew }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { setPwdErr(d.error || 'Не удалось сохранить пароль'); return }
+      setPwdHas(true); setPwdCurrent(''); setPwdNew('')
+      setPwdMsg('Пароль сохранён — теперь можно входить по нему')
+    } finally { setPwdBusy(false) }
+  }
   const [otp, setOtp] = useState('')
   const [phoneLoading, setPhoneLoading] = useState(false)
   const [phoneError, setPhoneError] = useState('')
@@ -375,6 +396,41 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
             </div>
           </form>
         )}
+      </section>
+
+      {/* Пароль для входа (решение Бориса 2026-08-08: пароль + вход по коду) */}
+      <section style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border)', padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <h2 style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '13px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
+            Пароль
+          </h2>
+          <span style={{ fontSize: '12px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px',
+            color: pwdHas ? 'var(--forest)' : '#92400E', background: pwdHas ? '#E8F5E9' : '#FEF3C7' }}>
+            {pwdHas ? '✓ Установлен' : 'Не задан'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '360px' }}>
+          {pwdHas && (
+            <input type="password" value={pwdCurrent} onChange={e => setPwdCurrent(e.target.value)}
+              placeholder="Текущий пароль" autoComplete="current-password"
+              style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '14px', fontFamily: 'Golos Text, sans-serif' }} />
+          )}
+          <input type="password" value={pwdNew} onChange={e => setPwdNew(e.target.value)}
+            placeholder="Новый пароль (мин. 8 символов)" autoComplete="new-password"
+            style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '14px', fontFamily: 'Golos Text, sans-serif' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button type="button" onClick={savePassword} disabled={pwdBusy || pwdNew.length < 8 || (pwdHas && !pwdCurrent)}
+              style={{ padding: '9px 16px', background: 'var(--forest)', color: 'white', border: 'none', borderRadius: '10px',
+                fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: (pwdBusy || pwdNew.length < 8 || (pwdHas && !pwdCurrent)) ? 0.5 : 1, fontFamily: 'Golos Text, sans-serif' }}>
+              {pwdBusy ? 'Сохраняем…' : pwdHas ? 'Сменить пароль' : 'Задать пароль'}
+            </button>
+            {pwdMsg && <span style={{ fontSize: '13px', color: 'var(--forest)' }}>{pwdMsg}</span>}
+            {pwdErr && <span style={{ fontSize: '13px', color: '#DC2626' }}>{pwdErr}</span>}
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--ink-soft)', margin: 0 }}>
+            Вход по коду на email остаётся доступен всегда — пароль можно не запоминать.
+          </p>
+        </div>
       </section>
 
       {/* Contacts disclosure preference */}

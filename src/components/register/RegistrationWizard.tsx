@@ -26,6 +26,7 @@ export function RegistrationWizard() {
   const [detailsError, setDetailsError] = useState('')
 
   const [otp, setOtp] = useState('')
+  const [password, setPassword] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState('')
 
@@ -79,6 +80,7 @@ export function RegistrationWizard() {
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           otp: otp.trim(),
+          password,
           fullName: fullName.trim(),
           rawAddress: rawAddress.trim(),
           apartmentNumber: apartmentNumber.trim() || undefined,
@@ -139,8 +141,8 @@ export function RegistrationWizard() {
         )}
 
         {step === 'otp' && (
-          <StepOtp email={email} otp={otp} error={otpError} loading={otpLoading}
-            onChange={setOtp} onResend={sendOtp} onSubmit={submit} />
+          <StepOtp email={email} otp={otp} password={password} error={otpError} loading={otpLoading}
+            onChange={setOtp} onPasswordChange={setPassword} onResend={sendOtp} onSubmit={submit} />
         )}
 
         <p className="text-sm text-gray-500 text-center mt-6">
