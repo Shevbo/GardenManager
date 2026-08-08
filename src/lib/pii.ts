@@ -46,10 +46,17 @@ const PHONE_RE = /(?:\+7|\b8)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}\b/g
 export function piiTokensFromSenderLine(senderLine: string | null | undefined): string[] {
   if (!senderLine) return []
   const head = maskSenderLine(senderLine, false) ?? ''
-  return senderLine
+  const lines = senderLine
     .split('\n')
     .map(l => l.replace(/[\s,;.]+$/g, '').trim())
     .filter(l => l.length >= 5 && !head.includes(l))
+  // Плюс фрагменты строк (по запятым): адрес в чате часто переформулирован
+  // («ул. Летчиков, зд. 10» вместо полной строки шапки) — ловим кусками.
+  const chunks = lines
+    .flatMap(l => l.split(','))
+    .map(c => c.replace(/[\s,;.]+$/g, '').trim())
+    .filter(c => c.length >= 5)
+  return [...new Set([...lines, ...chunks])]
 }
 
 /**
