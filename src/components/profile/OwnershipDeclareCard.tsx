@@ -10,11 +10,12 @@ type Props = {
   buildingAddress: string | null
   currentAreaSqm: number | null
   lastDeclaredAt: string | null
+  smsSenderPhone?: string | null
 }
 
 export function OwnershipDeclareCard({
   membershipId, orgName, apartmentNumber, buildingAddress,
-  currentAreaSqm, lastDeclaredAt,
+  currentAreaSqm, lastDeclaredAt, smsSenderPhone = null,
 }: Props) {
   const confirm = useConfirm()
   const [step, setStep] = useState<'idle' | 'otp'>('idle')
@@ -146,7 +147,7 @@ export function OwnershipDeclareCard({
       ) : (
         <>
           <p className="text-sm text-ink/70 mb-1">Введите код из SMS</p>
-          <div className="mb-3"><SmsSenderHint compact /></div>
+          <div className="mb-3"><SmsSenderHint phone={smsSenderPhone} compact /></div>
           <input type="text" inputMode="numeric" value={otp}
             onChange={e => setOtp(e.target.value)} placeholder="6 цифр"
             className="w-full px-3 py-2 border border-border rounded-xl text-base text-center tracking-widest mb-3" />

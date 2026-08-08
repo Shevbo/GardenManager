@@ -1,14 +1,12 @@
 /**
  * Подсказка о номере-отправителе СМС (просьба Бориса 2026-08-08): рекомендуем
  * сохранить сервисный номер в контакты, чтобы коды не резал антиспам оператора.
- * Номер задаётся NEXT_PUBLIC_SMS_SENDER_PHONE (в прод-.env, инлайнится при
- * сборке); пока номер не задан — текст без цифры, смысл сохраняется.
+ * Номер приходит пропом из настроек платформы (lib/platform-settings.ts →
+ * getSmsSenderPhone, админка «Управление» → «Номер отправителя СМС»).
  */
-const SENDER_PHONE = process.env.NEXT_PUBLIC_SMS_SENDER_PHONE
-
-export function SmsSenderHint({ compact = false }: { compact?: boolean }) {
-  const text = SENDER_PHONE
-    ? `СМС придёт с номера ${SENDER_PHONE}. Рекомендуем сохранить его в контактах как «Garden Manager» — так сообщения не попадут под антиспам-фильтр вашего оператора связи.`
+export function SmsSenderHint({ phone, compact = false }: { phone?: string | null; compact?: boolean }) {
+  const text = phone
+    ? `СМС придёт с номера ${phone}. Рекомендуем сохранить его в контактах как «Garden Manager» — так сообщения не попадут под антиспам-фильтр вашего оператора связи.`
     : 'СМС придёт с сервисного номера системы. Рекомендуем сохранить его в контактах как «Garden Manager» после первого сообщения — так коды не попадут под антиспам-фильтр вашего оператора связи.'
   return (
     <p style={{

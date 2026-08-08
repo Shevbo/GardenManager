@@ -12,6 +12,7 @@ interface Props {
   emailVerified?: boolean
   initialContactDisclosure?: string | null
   hasPassword?: boolean
+  smsSenderPhone?: string | null
 }
 
 const DISCLOSURE_OPTIONS = [
@@ -20,7 +21,7 @@ const DISCLOSURE_OPTIONS = [
   { value: 'none', label: 'Не раскрывать', hint: 'мои контакты не передаются' },
 ]
 
-export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, emailVerified, initialContactDisclosure, hasPassword = false }: Props) {
+export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVerified, initialEmail, emailVerified, initialContactDisclosure, hasPassword = false, smsSenderPhone = null }: Props) {
   const [name, setName] = useState(initialName ?? '')
   const [address, setAddress] = useState(initialAddress ?? '')
   const [saving, setSaving] = useState(false)
@@ -372,10 +373,10 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
             )}
           </div>
         ) : null}
-        {phoneStep === 'input' ? <SmsSenderHint /> : (
+        {phoneStep === 'input' ? <SmsSenderHint phone={smsSenderPhone} /> : (
           <form onSubmit={handleVerifyPhone} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>Код отправлен на {phone}</p>
-            <SmsSenderHint compact />
+            <SmsSenderHint phone={smsSenderPhone} compact />
             <input
               type="text"
               value={otp}

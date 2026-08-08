@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { ProfileForm } from './ProfileForm'
+import { getSmsSenderPhone } from '@/lib/platform-settings'
 import { NotifyPrefsForm } from './NotifyPrefsForm'
 import { OwnershipDeclareCard } from '@/components/profile/OwnershipDeclareCard'
 import { PropertyOwnershipSection } from '@/components/profile/PropertyOwnershipSection'
@@ -21,6 +22,7 @@ export default async function ProfilePage() {
   if (!user) redirect('/login')
 
   const notifyPrefs = mergePrefs(user.notifyPrefs)
+  const smsSenderPhone = await getSmsSenderPhone()
 
   const memberships = await prisma.membership.findMany({
     where: { userId: session.user.id },
@@ -44,6 +46,7 @@ export default async function ProfilePage() {
           emailVerified={!!user.emailVerified}
           initialContactDisclosure={user.contactDisclosure}
           hasPassword={!!user.password}
+          smsSenderPhone={smsSenderPhone}
         />
         <section className="mt-6 max-w-2xl mx-auto">
           <h2 className="font-display text-lg font-bold text-ink mb-3">Подтверждение собственности</h2>
@@ -58,6 +61,7 @@ export default async function ProfilePage() {
                   buildingAddress={m.apartment?.building?.address ?? null}
                   currentAreaSqm={m.areaSqm}
                   lastDeclaredAt={m.ownershipDeclarations[0]?.signedAt.toISOString() ?? null}
+                  smsSenderPhone={smsSenderPhone}
                 />
               ))}
             </div>

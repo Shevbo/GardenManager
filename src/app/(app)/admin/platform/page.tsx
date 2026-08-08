@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma'
 import { isPlatformAdmin } from '@/lib/permissions'
 import { Building2, Users, Tag, FileSignature, Inbox, FileText } from 'lucide-react'
 import { LawyerQuotaSetting } from './LawyerQuotaSetting'
+import { SmsSenderSetting } from './SmsSenderSetting'
 
 export default async function PlatformAdminIndex() {
   const session = await auth()
@@ -100,6 +101,7 @@ export default async function PlatformAdminIndex() {
       <div className="mt-8 max-w-md">
         <h2 className="font-display text-sm font-bold text-ink/70 uppercase tracking-wider mb-3">Настройки</h2>
         <LawyerQuotaSetting />
+        <SmsSenderSetting />
       </div>
     </div>
   )
