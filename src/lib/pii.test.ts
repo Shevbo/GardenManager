@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { maskPii, maskSenderLine, MASK } from './pii'
+import { maskPii, maskSenderLine, MASK, maskFreeTextPii, piiTokensFromSenderLine } from './pii'
 
 describe('maskPii', () => {
   it('author (canSeePii) sees the real value', () => {
@@ -37,5 +37,29 @@ describe('maskSenderLine', () => {
   })
   it('a sender line without a contact block is left intact', () => {
     expect(maskSenderLine('Собственники ЖК «Гарден»', false)).toBe('Собственники ЖК «Гарден»')
+  })
+})
+
+describe('maskFreeTextPii — история чата юриста', () => {
+  it('вырезает email и телефоны в разных форматах', () => {
+    const t = 'Пишите на bshevelev@mail.ru или звоните +7 985 923-23-44, резерв 89859232344.'
+    const r = maskFreeTextPii(t)
+    expect(r).not.toContain('bshevelev@mail.ru')
+    expect(r).not.toContain('923')
+    expect(r.match(/\*ПДн скрыты\*/g)!.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('не трогает юридический текст с числами', () => {
+    const t = 'Согласно ст. 46 ЖК РФ и п. 1 ст. 181.2 ГК РФ кворум 50%.'
+    expect(maskFreeTextPii(t)).toBe(t)
+  })
+
+  it('вырезает известные строки шапки (адрес автора)', () => {
+    const sender = 'от Шевелева Бориса Сергеевича,\nпроживающего по адресу:\n299000, г. Севастополь, ул. Летчиков,\nзд. 10, корп. 1, кв. 104'
+    const tokens = piiTokensFromSenderLine(sender)
+    expect(tokens.length).toBeGreaterThan(0)
+    const chat = 'Заявитель проживает: 299000, г. Севастополь, ул. Летчиков, — это учтено.'
+    const r = maskFreeTextPii(chat, tokens)
+    expect(r).not.toContain('Севастополь, ул. Летчиков')
   })
 })

@@ -8,6 +8,7 @@ import { webSearch, webSearchEnabled } from '@/lib/lawyer-tools'
 import { getLawyerQuota } from '@/lib/settings'
 import { formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
+import { maskFreeTextPii, piiTokensFromSenderLine } from '@/lib/pii'
 import type { PetitionStatus } from '@/lib/petition-status'
 
 const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin']
@@ -32,7 +33,7 @@ export async function GET(
 
   const petition = await prisma.petition.findUnique({
     where: { id },
-    select: { orgId: true },
+    select: { orgId: true, createdBy: true, senderLine: true },
   })
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -61,15 +62,29 @@ export async function GET(
 
   const used = messages.filter(m => m.role === 'user' && m.userId === session.user.id).length
 
+  // ПДн в истории видит только АВТОР заявления: остальным маскируем email,
+  // телефоны и известные строки шапки «От кого» (правило Бориса).
+  const viewerIsAuthor = session.user.id === petition.createdBy
+  const author = await prisma.user.findUnique({
+    where: { id: petition.createdBy },
+    select: { phone: true, email: true },
+  })
+  const piiTokens = [
+    ...piiTokensFromSenderLine(petition.senderLine),
+    ...(author?.phone ? [author.phone] : []),
+    ...(author?.email ? [author.email] : []),
+  ]
+
   const result = messages.map(m => {
     let authorName: string
     if (m.role === 'assistant' || !m.userId) {
       authorName = 'Юрист ИИ'
     } else {
-      const u = userMap.get(m.userId)
-      authorName = u?.name ?? u?.email ?? 'Участник'
+      // email в подписи — тоже ПДн; фолбэк нейтральный
+      authorName = userMap.get(m.userId)?.name ?? 'Участник'
     }
-    return { id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, authorName }
+    const content = viewerIsAuthor ? m.content : maskFreeTextPii(m.content, piiTokens)
+    return { id: m.id, role: m.role, content, createdAt: m.createdAt, authorName }
   })
 
   return NextResponse.json({ messages: result, quota, used, isAdmin })
@@ -94,6 +109,8 @@ export async function POST(
       status: true,
       docYear: true,
       docSeq: true,
+      createdBy: true,
+      senderLine: true,
     },
   })
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -174,6 +191,22 @@ export async function POST(
   const assistantMessage = await prisma.petitionLawyerMessage.create({
     data: { petitionId: id, userId: null, role: 'assistant', content: assistantContent },
   })
+
+  // В ответе для не-автора ПДн так же скрыты, как в истории.
+  if (session.user.id !== petition.createdBy) {
+    const author = await prisma.user.findUnique({
+      where: { id: petition.createdBy }, select: { phone: true, email: true },
+    })
+    const piiTokens = [
+      ...piiTokensFromSenderLine(petition.senderLine),
+      ...(author?.phone ? [author.phone] : []),
+      ...(author?.email ? [author.email] : []),
+    ]
+    return NextResponse.json({
+      userMessage: { ...userMessage, content: maskFreeTextPii(userMessage.content, piiTokens) },
+      assistantMessage: { ...assistantMessage, content: maskFreeTextPii(assistantMessage.content, piiTokens) },
+    })
+  }
 
   return NextResponse.json({ userMessage, assistantMessage })
 }

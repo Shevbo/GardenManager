@@ -35,3 +35,38 @@ export function maskSenderLine(senderLine: string | null | undefined, canSeePii:
   if (/\d/.test(head)) head = senderLine.split('\n')[0].replace(/[\s,;.]+$/g, '').trim()
   return head || 'От имени группы заявителей'
 }
+
+const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
+const PHONE_RE = /(?:\+7|\b8)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}\b/g
+
+/**
+ * ПДн-токены из шапки «От кого»: строки с адресом/телефоном/email автора —
+ * всё, что maskSenderLine отрезает от полной шапки для не-авторов.
+ */
+export function piiTokensFromSenderLine(senderLine: string | null | undefined): string[] {
+  if (!senderLine) return []
+  const head = maskSenderLine(senderLine, false) ?? ''
+  return senderLine
+    .split('\n')
+    .map(l => l.replace(/[\s,;.]+$/g, '').trim())
+    .filter(l => l.length >= 5 && !head.includes(l))
+}
+
+/**
+ * Маскирует ПДн в свободном тексте (история чата с юристом ИИ и т.п.) для
+ * читателя без права на ПДн: email-адреса, телефоны РФ и известные строки
+ * из шапки автора (адрес, представительство) → MASK.
+ */
+export function maskFreeTextPii(text: string, extraTokens: string[] = []): string {
+  if (!text) return text
+  let out = text.replace(EMAIL_RE, MASK).replace(PHONE_RE, MASK)
+  for (const token of extraTokens) {
+    if (token.length < 5) continue
+    let idx = out.toLowerCase().indexOf(token.toLowerCase())
+    while (idx !== -1) {
+      out = out.slice(0, idx) + MASK + out.slice(idx + token.length)
+      idx = out.toLowerCase().indexOf(token.toLowerCase(), idx + MASK.length)
+    }
+  }
+  return out
+}
