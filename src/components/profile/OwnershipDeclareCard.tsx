@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { SmsSenderHint } from '@/components/ui/SmsSenderHint'
 import { useConfirm } from '@/components/ui/dialog'
 
 type Props = {
@@ -144,7 +145,8 @@ export function OwnershipDeclareCard({
         </>
       ) : (
         <>
-          <p className="text-sm text-ink/70 mb-3">Введите код из SMS</p>
+          <p className="text-sm text-ink/70 mb-1">Введите код из SMS</p>
+          <div className="mb-3"><SmsSenderHint compact /></div>
           <input type="text" inputMode="numeric" value={otp}
             onChange={e => setOtp(e.target.value)} placeholder="6 цифр"
             className="w-full px-3 py-2 border border-border rounded-xl text-base text-center tracking-widest mb-3" />

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete'
+import { SmsSenderHint } from '@/components/ui/SmsSenderHint'
 
 interface Props {
   initialName: string | null
@@ -373,6 +374,7 @@ export function ProfileForm({ initialName, initialAddress, initialPhone, phoneVe
         ) : (
           <form onSubmit={handleVerifyPhone} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ fontSize: '13px', color: 'var(--ink-soft)', margin: 0 }}>Код отправлен на {phone}</p>
+            <SmsSenderHint compact />
             <input
               type="text"
               value={otp}
