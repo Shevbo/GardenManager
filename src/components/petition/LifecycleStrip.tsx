@@ -20,9 +20,12 @@ type Props = {
   petitionId: string
   currentStatus: PetitionStatus
   isPublic: boolean
+  /** Право на управление (статусы, видимость). По умолчанию false —
+   *  забытый вызов скрывает кнопки, а не показывает их лишним людям. */
+  canManage?: boolean
 }
 
-export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
+export function LifecycleStrip({ petitionId, currentStatus, isPublic, canManage = false }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const notify = useNotify()
@@ -87,15 +90,16 @@ export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
         let border = '1px solid var(--border)'
         let cursor = 'default'
 
-        if (isDone)   { bg = '#D6F4E5'; color = '#0A3D2E'; border = '1px solid #7ECFA4'; cursor = 'pointer' }
+        if (isDone)   { bg = '#D6F4E5'; color = '#0A3D2E'; border = '1px solid #7ECFA4'; cursor = canManage ? 'pointer' : 'default' }
         if (isActive) { bg = '#EDEAFC'; color = '#4B3FBF'; border = '1px solid #9B8EE8' }
-        if (isNext)   { bg = '#FEF3C7'; color = '#92400E'; border = '1px solid #D97706'; cursor = 'pointer' }
+        if (isNext)   { bg = '#FEF3C7'; color = '#92400E'; border = '1px solid #D97706'; cursor = canManage ? 'pointer' : 'default' }
 
         return (
           <button
             key={step.status}
-            disabled={isActive}
+            disabled={isActive || !canManage}
             onClick={() => {
+              if (!canManage) return
               if (isDone) {
                 transitionTo(ORDER[i] as PetitionStatus)
               } else if (isNext) {
@@ -123,8 +127,8 @@ export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
       })}
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {/* visibility toggle */}
-        <button
+        {/* visibility toggle — только управляющим */}
+        {canManage && <button
           onClick={toggleVisibility}
           style={{
             padding: '4px 12px',
@@ -140,7 +144,7 @@ export function LifecycleStrip({ petitionId, currentStatus, isPublic }: Props) {
           }}
         >
           {isPublic ? '🌐 Публично' : '🔒 Скрыто'}
-        </button>
+        </button>}
         {isPublic && (
           <CopyLinkButton url={`${typeof window !== 'undefined' ? window.location.origin : ''}/petition/${petitionId}`} />
         )}

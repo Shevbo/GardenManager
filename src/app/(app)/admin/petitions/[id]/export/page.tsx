@@ -14,6 +14,7 @@ import { AppendicesPanel } from '../AppendicesPanel'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
 import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -62,6 +63,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
     },
   })
   if (!petition) notFound()
+  const canManage = await canManageOrgWorkflow(session.user.id, petition.orgId)
   const isAuthor = session.user.id === petition.createdBy
 
   const membership = await prisma.membership.findFirst({
@@ -82,7 +84,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
         <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
 
-      <LifecycleStrip
+      <LifecycleStrip canManage={canManage}
         petitionId={id}
         currentStatus={petition.status as PetitionStatus}
         isPublic={petition.isPublic}
@@ -100,7 +102,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
             <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '10px', fontWeight: 700, color: '#92400E', letterSpacing: '0.06em', margin: '0 0 4px' }}>ЭТАП: ЭКСПОРТ</p>
             <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#92400E', margin: 0 }}>Документ закрыт. Скачайте PDF с реестром подписей.</p>
           </div>
-          <ExportButton petitionId={id} />
+          {canManage && <ExportButton petitionId={id} />}
         </div>
 
         {/* Document card */}

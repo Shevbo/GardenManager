@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { Plus, Vote, Calendar } from 'lucide-react'
 import { getActiveOrgId } from '@/lib/active-org'
-import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 import { AgendaProposals } from './AgendaProposals'
 
 export const dynamic = 'force-dynamic'
@@ -44,28 +44,17 @@ export default async function AssembliesPage() {
     <div className="p-8 max-w-3xl mx-auto overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-1">
         <h1 className="font-display text-2xl font-bold text-ink">Собрания</h1>
-        {isAdmin ? (
+        {/* Управление — только админам/должностям (решение Бориса: не-админы кнопок не видят) */}
+        {isAdmin && (
           <Link href="/admin/assemblies/new"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-forest hover:bg-forest-mid px-4 py-2 rounded-xl transition-colors">
             <Plus size={16} /> Создать собрание
           </Link>
-        ) : (
-          // Не прячем функцию молча — поясняем, у кого доступ (решение Бориса).
-          <span title={WORKFLOW_FORBIDDEN_MESSAGE}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/35 bg-ink/5 px-4 py-2 rounded-xl cursor-not-allowed select-none">
-            <Plus size={16} /> Создать собрание
-          </span>
         )}
       </div>
       <p className="text-ink/50 text-sm mb-6">
         Общие собрания собственников: повестка, согласование, голосование и итоговый протокол с реестром подписей.
       </p>
-      {!isAdmin && (
-        <p className="text-xs text-amber-700 bg-amber/10 border border-amber/30 rounded-xl px-3 py-2 mb-4">
-          {WORKFLOW_FORBIDDEN_MESSAGE}.
-        </p>
-      )}
-
       {/* «Вёрстка повестки»: предложения тем от собственников */}
       {activeOrgId && <AgendaProposals isOwner={isOwner} />}
 

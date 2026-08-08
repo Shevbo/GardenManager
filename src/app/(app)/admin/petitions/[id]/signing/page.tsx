@@ -16,7 +16,7 @@ import { AppendicesPanel } from '../AppendicesPanel'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
 import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
-import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -117,7 +117,7 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
         <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
 
-      <LifecycleStrip
+      <LifecycleStrip canManage={isAdmin}
         petitionId={id}
         currentStatus={petition.status as PetitionStatus}
         isPublic={petition.isPublic}
@@ -137,13 +137,11 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
               {signedCount} из {totalMembers} участников подписали
             </p>
           </div>
-          {petition.status === 'SIGNING' && (isAdmin ? (
+          {petition.status === 'SIGNING' && isAdmin && (
             <form action={closePetition}>
               <Button type="submit" variant="primary" size="sm">Закрыть сбор подписей →</Button>
             </form>
-          ) : (
-            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: '#92400E', margin: 0, maxWidth: '240px', textAlign: 'right' }}>{WORKFLOW_FORBIDDEN_MESSAGE}</p>
-          ))}
+          )}
         </div>
 
         {/* Document card */}

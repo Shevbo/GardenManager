@@ -5,10 +5,9 @@ import Link from 'next/link'
 import { AssemblyRoom } from './AssemblyRoom'
 import { computeResults } from '@/lib/assembly-results'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
-import { isPlatformAdmin } from '@/lib/permissions'
+import { isPlatformAdmin, canManageOrgWorkflow } from '@/lib/permissions'
 import { getUserGovRoles } from '@/lib/org-roles'
 
-const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
 
 export default async function AssemblyPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -36,10 +35,10 @@ export default async function AssemblyPage({ params }: { params: Promise<{ id: s
     getUserGovRoles(session.user.id, assembly.orgId),
   ])
   const isChair = govRoles.includes('chairman') || govRoles.includes('vice_chairman')
-  const isSecretary = govRoles.includes('secretary')
-  const isAdminRole = platAdmin || ADMIN_ROLES.includes(membership.role) || govRoles.includes('org_admin')
-  const canApprove = isChair || isAdminRole      // approve / close
-  const isAdmin = canApprove || isSecretary       // see & operate the controls
+  // Единое правило Бориса: управление — админ/председатель+зам/секретарь
+  // (совет дома исключён); canManageOrgWorkflow это и проверяет.
+  const isAdmin = await canManageOrgWorkflow(session.user.id, assembly.orgId)
+  const canApprove = isChair || platAdmin || (isAdmin && !govRoles.includes('secretary')) || govRoles.includes('org_admin') // approve / close (секретарь публикует, но не закрывает)
   const canVote = !!membership.isOwner && (membership.areaSqm ?? 0) > 0 && assembly.status === 'VOTING'
 
   const myVotes = await prisma.assemblyVote.findMany({

@@ -63,11 +63,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Verify membership and role (org_admin or council_member can create)
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, orgId },
-  })
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Создание заявления — управляющим (админ/председатель+зам/секретарь);
+  // жители участвуют через обсуждение, подписи и повестку.
+  const { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } = await import('@/lib/permissions')
+  if (!(await canManageOrgWorkflow(session.user.id, orgId))) {
+    return NextResponse.json({ error: WORKFLOW_FORBIDDEN_MESSAGE }, { status: 403 })
+  }
 
   const petition = await prisma.petition.create({
     data: {

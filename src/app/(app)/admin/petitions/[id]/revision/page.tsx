@@ -12,6 +12,7 @@ import { AIRevisionControls } from './AIRevisionControls'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
 import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -60,6 +61,7 @@ export default async function RevisionPage({ params }: { params: Promise<{ id: s
     },
   })
   if (!petition) notFound()
+  const canManage = await canManageOrgWorkflow(session.user.id, petition.orgId)
   const isAuthor = session.user.id === petition.createdBy
 
   const num = await assignDocNumber(prisma, id)
@@ -73,7 +75,7 @@ export default async function RevisionPage({ params }: { params: Promise<{ id: s
         <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
 
-      <LifecycleStrip
+      <LifecycleStrip canManage={canManage}
         petitionId={id}
         currentStatus={petition.status as PetitionStatus}
         isPublic={petition.isPublic}
@@ -89,7 +91,7 @@ export default async function RevisionPage({ params }: { params: Promise<{ id: s
         <div style={{ background: '#FEF3C7', border: '1px solid #D97706', borderRadius: '6px', padding: '16px 20px', marginBottom: '20px' }}>
           <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '10px', fontWeight: 700, color: '#92400E', letterSpacing: '0.06em', margin: '0 0 4px' }}>ЭТАП: AI РЕВИЗИЯ</p>
           <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#92400E', margin: '0 0 12px' }}>AI обрабатывает комментарии. Проверьте финальный текст и запустите сбор подписей.</p>
-          <AIRevisionControls petitionId={id} />
+          {canManage && <AIRevisionControls petitionId={id} />}
         </div>
 
         {/* Document card */}

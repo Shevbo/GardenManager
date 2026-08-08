@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import { EditPetitionForm } from './EditPetitionForm'
 import { LifecycleStrip } from '@/components/petition/LifecycleStrip'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 import type { PetitionStatus } from '@/lib/petition-status'
 import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
@@ -35,6 +36,10 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
     where: { userId: session.user.id, orgId: petition.orgId },
   })
   if (!membership) redirect('/dashboard')
+  // Редактирование — только управляющим (решение Бориса)
+  if (!(await canManageOrgWorkflow(session.user.id, petition.orgId))) {
+    redirect(`/admin/petitions/${id}/discussion`)
+  }
 
   const num = await assignDocNumber(prisma, id)
   const docNumber = formatDocNumber(num?.year ?? null, num?.seq ?? null)
@@ -44,7 +49,7 @@ export default async function EditPetitionPage({ params }: { params: Promise<{ i
       <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--white)', padding: '0 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, zIndex: 10 }}>
         <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
-      <LifecycleStrip petitionId={id} currentStatus={petition.status as PetitionStatus} isPublic={false} />
+      <LifecycleStrip canManage petitionId={id} currentStatus={petition.status as PetitionStatus} isPublic={false} />
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px 0' }}>

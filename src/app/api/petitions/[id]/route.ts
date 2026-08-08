@@ -42,11 +42,12 @@ export async function PATCH(
   const petition = await prisma.petition.findUnique({ where: { id } })
   if (!petition) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Verify membership in the petition's org
-  const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, orgId: petition.orgId },
-  })
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Редактирование/статусы — только управляющим (админ/председатель+зам/секретарь).
+  // Раньше хватало ЛЮБОГО членства — жители могли править чужие заявления.
+  const { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } = await import('@/lib/permissions')
+  if (!(await canManageOrgWorkflow(session.user.id, petition.orgId))) {
+    return NextResponse.json({ error: WORKFLOW_FORBIDDEN_MESSAGE }, { status: 403 })
+  }
 
   const { status, finalText, recipient, senderLine, discussionDeadline, signingDeadline, title, draftText, templateId, fieldValues, appendixTemplateIds } =
     body as {
@@ -112,9 +113,9 @@ export async function DELETE(
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const ADMIN_ROLES = ['org_admin', 'council_member', 'coalition_admin', 'platform_admin']
-  if (!ADMIN_ROLES.includes(membership.role)) {
-    return NextResponse.json({ error: 'Only admins can delete petitions' }, { status: 403 })
+  const { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } = await import('@/lib/permissions')
+  if (!(await canManageOrgWorkflow(session.user.id, petition.orgId))) {
+    return NextResponse.json({ error: WORKFLOW_FORBIDDEN_MESSAGE }, { status: 403 })
   }
 
   if (petition._count.signatures > 0) {

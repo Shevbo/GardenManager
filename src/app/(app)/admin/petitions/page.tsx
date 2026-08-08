@@ -5,6 +5,7 @@ import { getActiveOrgId, getUserOrgIds } from '@/lib/active-org'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { DeletePetitionButton } from './DeletePetitionButton'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Черновик', DISCUSSION: 'Обсуждение', AI_REVISION: 'AI Ревизия',
@@ -22,6 +23,8 @@ export default async function AdminPetitionsPage() {
 
   const activeOrgId = await getActiveOrgId(session.user.id)
   const orgIds = activeOrgId ? [activeOrgId] : await getUserOrgIds(session.user.id)
+  const canManage = activeOrgId ? await canManageOrgWorkflow(session.user.id, activeOrgId) : false
+
   const petitions = orgIds.length === 0 ? [] : await prisma.petition.findMany({
     where: { orgId: { in: orgIds } },
     orderBy: { createdAt: 'desc' },
@@ -32,9 +35,11 @@ export default async function AdminPetitionsPage() {
     <div className="max-w-4xl mx-auto px-5 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Заявления</h1>
-        <Link href="/admin/petitions/new">
-          <Button>+ Новое заявление</Button>
-        </Link>
+        {canManage && (
+          <Link href="/admin/petitions/new">
+            <Button>+ Новое заявление</Button>
+          </Link>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -55,7 +60,7 @@ export default async function AdminPetitionsPage() {
               <Link href={`/admin/petitions/${p.id}/${NEXT_STEP[p.status] ?? 'discussion'}`}>
                 <Button size="sm" variant="secondary">→</Button>
               </Link>
-              <DeletePetitionButton petitionId={p.id} title={p.title} />
+              {canManage && <DeletePetitionButton petitionId={p.id} title={p.title} />}
             </div>
           </div>
         ))}

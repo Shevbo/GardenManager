@@ -14,7 +14,7 @@ import { PdfPreviewSidebarLazy } from '@/components/pdf/PdfPreviewSidebarLazy'
 import { DocumentHeader } from '@/components/petition/DocumentHeader'
 import { assignDocNumber, formatDocNumber } from '@/lib/doc-number'
 import { STATUS_LABEL } from '@/lib/petition-status-label'
-import { canManageOrgWorkflow, WORKFLOW_FORBIDDEN_MESSAGE } from '@/lib/permissions'
+import { canManageOrgWorkflow } from '@/lib/permissions'
 
 function groupPetitionReactions(
   rawReactions: { emoji: string; userId: string; user: { name: string | null } }[],
@@ -101,7 +101,7 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
         <Link href="/admin/petitions" style={{ color: 'var(--ink-soft)', fontSize: '13px', textDecoration: 'none', fontFamily: 'Golos Text, sans-serif' }}>← Заявления</Link>
       </div>
 
-      <LifecycleStrip
+      <LifecycleStrip canManage={canManage}
         petitionId={id}
         currentStatus={petition.status as PetitionStatus}
         isPublic={petition.isPublic}
@@ -113,20 +113,16 @@ export default async function DiscussionPage({ params }: { params: Promise<{ id:
 
         <DocumentHeader petitionId={id} docNumber={docNumber} statusLabel={STATUS_LABEL[petition.status as PetitionStatus]} initialSummary={petition.aiSummary ?? null} />
 
-        {/* Admin action block */}
-        <div style={{ background: '#FEF3C7', border: '1px solid #D97706', borderRadius: '6px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        {/* Admin action block — только управляющим (решение Бориса) */}
+        {canManage && <div style={{ background: '#FEF3C7', border: '1px solid #D97706', borderRadius: '6px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div>
             <p style={{ fontFamily: 'Unbounded, sans-serif', fontSize: '10px', fontWeight: 700, color: '#92400E', letterSpacing: '0.06em', margin: '0 0 4px' }}>ЭТАП: ОБСУЖДЕНИЕ</p>
             <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '13px', color: '#92400E', margin: 0 }}>Соберите обратную связь участников перед передачей в AI</p>
           </div>
-          {canManage ? (
-            <form action={startRevision}>
-              <Button type="submit" variant="primary" size="sm">Запустить AI-ревизию →</Button>
-            </form>
-          ) : (
-            <p style={{ fontFamily: 'Golos Text, sans-serif', fontSize: '12px', color: '#92400E', margin: 0, maxWidth: '240px', textAlign: 'right' }}>{WORKFLOW_FORBIDDEN_MESSAGE}</p>
-          )}
-        </div>
+          <form action={startRevision}>
+            <Button type="submit" variant="primary" size="sm">Запустить AI-ревизию →</Button>
+          </form>
+        </div>}
 
         {/* Document card */}
         <div style={{ background: 'var(--white)', borderRadius: '6px', border: '1px solid var(--border)', borderLeft: '4px solid var(--forest)', overflow: 'hidden', marginBottom: '16px' }}>
